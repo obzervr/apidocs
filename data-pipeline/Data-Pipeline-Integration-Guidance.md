@@ -192,28 +192,24 @@ END
 DROP TABLE #ResultSet;
 ```
 
-### Pattern 2: Incremental Load (Date-Based)
+### Pattern 2: Historical Load (Date-Based)
 
-Use for regular ETL jobs to capture changes since last load.
+Use for regular ETL jobs to load items only in a given time period
 
 ```sql
-DECLARE @LastLoadTime datetime = '2025-10-11 00:00:00';
-DECLARE @CurrentLoadTime datetime = GETDATE();
+DECLARE @Start datetime = '2025-06-01 00:00:00';
 DECLARE @PagingId rowversion = NULL;
 
 -- Extract all changes in time window
 EXEC pipeline.sp_GetAssignments
-    @LastUpdatedStart = @LastLoadTime,
-    @LastUpdatedEnd = @CurrentLoadTime,
+    @LastUpdatedStart = @Start,
     @LastPagingId = @PagingId,
-    @RowCount = 100000;
-
--- Store @CurrentLoadTime for next run
+    @RowCount = 1000;
 ```
 
 ### Pattern 3: Incremental Load (PagingId-Based)
 
-Use when LastUpdated timestamp might not be reliable or for insert-only tables.
+Ideal method to query all changes since last run
 
 ```sql
 DECLARE @LastKnownPagingId rowversion = 0x0000000000003030;
@@ -232,7 +228,7 @@ Use for multi-tenant architectures where data is segregated by tenant.
 ```sql
 -- Extract for specific tenant
 EXEC pipeline.sp_GetAssignments
-    @TenantIdList = 'TENANT-001',
+    @TenantIdList = 'TENANT-001_GUID',
     @LastUpdatedStart = '2025-10-01',
     @RowCount = 100000;
 ```
@@ -260,9 +256,8 @@ High-volume transactional data requiring careful pagination.
 
 ```sql
 -- Incremental load with pagination
-EXEC pipeline.sp_GeAssignmentDetailsSnapshot
+EXEC pipeline.sp_GetAssignmentDetailsSnapshot
     @LastPagingId = 0x0000000000003030,
-    @LastUpdatedStart = '2025-10-01',
     @RowCount = 100000;
 ```
 
@@ -295,7 +290,6 @@ Moderate-volume operational data.
 -- Full dimension load with soft delete handling
 EXEC pipeline.sp_GetAssignments
     @TenantIdList = 'TENANT-001',
-    @LastUpdatedStart = '2025-10-01',
     @RowCount = 50000;
 ```
 
@@ -360,7 +354,7 @@ EXEC pipeline.sp_GetAssignmentStatus;
 
 ### Rate Limit Error (50001)
 
-**Cause:** No valid lease or rate limit exceeded
+**Cause:** Rate limit exceeded
 
 **Error Message:**
 ```
@@ -439,21 +433,11 @@ This section provides critical guidance for reliable data extraction from the Ob
 
 ### 1. Pagination Strategy
 
-- Always use `PagingId` for pagination, not offset-based pagination
+- Always use `PagingId` for pagination
 - Store the last `PagingId` after each batch
 - Results are always ordered by `PagingId` for consistent pagination
 
 ### 2. Incremental Loading Strategies
-
-Choose the appropriate strategy based on the paging parameter available for the entity.
-
-> **Quick Decision:** Check the [Entity Catalog](#entity-catalog) to see which parameter your entity supports:
-> - Most entities support `@LastPagingId` → Use **Strategy A** (simpler, recommended)
-> - Some entities only support `@LastId` → Use **Strategy B** (requires more care)
-
-#### Strategy A: PagingId-Based Incremental Loading (Preferred)
-
-**When to use:** Entity supports `@LastPagingId` parameter (most entities)
 
 **How it works:**
 - Use `@LastPagingId` for both incremental loading AND pagination within a run
@@ -481,159 +465,18 @@ EXEC pipeline.sp_GetAssignments
 - Efficient rowversion-based pagination
 - Works for both incremental and pagination needs
 
-#### Strategy B: LastId + Timestamp Incremental Loading
-
-**When to use:** Entity uses `@LastId` (GUID) parameter instead of `@LastPagingId`
-
-**How it works:**
-- Use `@LastUpdatedStart` to define the incremental window (e.g., daily runs)
-- Use `@LastId` for pagination WITHIN each run
-- **IMPORTANT:** Keep `@LastUpdatedStart` constant across all pages within a single run
-- Results are ordered by `LastId`, NOT by `LastUpdated`
-
-**Example - Daily Synchronization:**
-
-```sql
--- ============================================
--- DAY 1: July 11, 2025
--- ============================================
-
--- Get ETL metadata: last successful run was July 10, 2025 at 23:59:59
-DECLARE @LastRunTime datetime = '2025-07-10 23:59:59';
-DECLARE @CurrentRunTime datetime = '2025-07-11 23:59:59';
-DECLARE @LastId uniqueidentifier = NULL;
-DECLARE @RowCount int = 50000;
-
--- Page 1: First page of today's incremental
-EXEC pipeline.sp_GetSomeEntity
-    @LastUpdatedStart = @LastRunTime,        -- Filter: records since last run
-    @LastUpdatedEnd = @CurrentRunTime,       -- Filter: up to current run
-    @LastId = NULL,                          -- Start from beginning of this time window
-    @RowCount = @RowCount;
-
--- Result: 50,000 rows returned (hit page size limit)
--- Last row has LastId = 'A1B2C3D4-...' and LastLoaded = '2025-07-11 14:30:22'
-
--- Page 2: Get next page for SAME incremental window
-EXEC pipeline.sp_GetSomeEntity
-    @LastUpdatedStart = @LastRunTime,        -- SAME VALUE - don't change!
-    @LastUpdatedEnd = @CurrentRunTime,       -- SAME VALUE - don't change!
-    @LastId = 'A1B2C3D4-...',               -- Resume pagination using LastId
-    @RowCount = @RowCount;
-
--- Result: 50,000 more rows
--- Last row has LastId = 'E5F6G7H8-...'
-
--- Page 3: Continue until all pages exhausted
-EXEC pipeline.sp_GetSomeEntity
-    @LastUpdatedStart = @LastRunTime,        -- STILL SAME VALUE
-    @LastUpdatedEnd = @CurrentRunTime,       -- STILL SAME VALUE
-    @LastId = 'E5F6G7H8-...',               -- Next page
-    @RowCount = @RowCount;
-
--- Result: 15,000 rows (less than page size = done)
--- All changes from Jul 10 to Jul 11 now extracted
-
--- ============================================
--- DAY 2: July 12, 2025
--- ============================================
-
--- Start NEW incremental run for next day
-SET @LastRunTime = '2025-07-11 23:59:59';   -- Updated to previous run
-SET @CurrentRunTime = '2025-07-12 23:59:59';
-SET @LastId = NULL;                          -- Reset for new run
-
--- Page 1 of new day
-EXEC pipeline.sp_GetSomeEntity
-    @LastUpdatedStart = @LastRunTime,        -- New time window
-    @LastUpdatedEnd = @CurrentRunTime,
-    @LastId = NULL,                          -- Start fresh for this window
-    @RowCount = @RowCount;
-
--- Continue paging as needed for Day 2 data...
-```
-
-**Critical Rules for Strategy B:**
-
-1. **Between Runs (Day to Day):**
-   - Update `@LastUpdatedStart` to the timestamp from the previous successful run
-   - Reset `@LastId` to NULL
-
-2. **Within a Run (Paging):**
-   - Keep `@LastUpdatedStart` and `@LastUpdatedEnd` constant
-   - Only change `@LastId` to paginate through results
-   - Never use `LastUpdated/LastLoaded` values for pagination
-
-3. **Result Ordering:**
-   - Results are ordered by `LastId` (GUID), not by `LastUpdated` timestamp
-   - This is why you must use `LastId` for pagination, not timestamp values
-
-**Why this matters:**
-```sql
--- ❌ WRONG: Trying to use LastUpdated for pagination
-EXEC pipeline.sp_GetSomeEntity
-    @LastUpdatedStart = '2025-07-11 14:30:22',  -- Using last row's timestamp
-    @RowCount = 50000;
--- Problem: You'll miss records or get duplicates because results aren't ordered by LastUpdated!
-
--- ✅ CORRECT: Using LastId for pagination
-EXEC pipeline.sp_GetSomeEntity
-    @LastUpdatedStart = '2025-07-11 00:00:00',  -- Original window start (unchanged)
-    @LastId = 'A1B2C3D4-...',                   -- Last row's ID
-    @RowCount = 50000;
--- Results continue correctly in LastId order
-```
-
-**Storage Requirements:**
-
-For Strategy B, store in your ETL metadata table:
-- `LastSuccessfulRunTime`: The `@LastUpdatedEnd` value from completed run
-- Do NOT store `LastId` between runs (reset to NULL each run)
-- Store `LastId` only temporarily during pagination within a single run
-
-#### Choosing the Right Strategy
-
-**Use Strategy A (PagingId) when:**
-- ✅ The entity supports `@LastPagingId` parameter
-- ✅ You want the simplest, most reliable approach
-- ✅ You need guaranteed consistency across all tenants
-- ✅ You want to avoid timestamp-related edge cases
-
-**Use Strategy B (LastId + Timestamp) when:**
-- ⚠️ The entity only supports `@LastId` parameter (no PagingId available)
-- ⚠️ You have specific business requirements for time-window filtering
-- ⚠️ You're willing to implement robust deduplication in your target
-
-**Recommendation:** Use Strategy A (PagingId) whenever possible. Strategy B is provided for entities that don't support PagingId.
-
-#### Strategy Comparison
-
-| Aspect | Strategy A (PagingId) | Strategy B (LastId + Timestamp) |
-|--------|----------------------|----------------------------------|
-| **Complexity** | ✅ Simple | ⚠️ Complex |
-| **Parameters Used** | `@LastPagingId`, `@RowCount` | `@LastUpdatedStart`, `@LastUpdatedEnd`, `@LastId`, `@RowCount` |
-| **Incremental & Paging** | ✅ Single parameter handles both | ⚠️ Timestamp for incremental, LastId for paging |
-| **Multi-Tenant Safety** | ✅ Fully consistent | ⚠️ Requires scheduling consideration |
-| **Duplicate Risk** | ✅ Minimal | ⚠️ Yes - requires MERGE/UPSERT |
-| **Load Timing Sensitivity** | ✅ No | ⚠️ Yes - extract after loads complete |
-| **Best For** | Most use cases | Entities without PagingId support |
-
-#### Strategy B: Important Considerations
-
-When using Strategy B (LastId + Timestamp), be aware of these important considerations:
-
 ##### ⚠️ Duplicate Handling Required
 
 Records may appear in multiple extractions due to updates in the Analytics store:
 
 ```sql
 -- Record loaded at 10:00:00
--- Customer extraction at 10:02:00 captures it
+-- Extraction at 10:02:00 captures it
 
 -- Record updated at 10:05:00 (LastLoaded changes)
--- Customer's next extraction at 10:10:00 captures it AGAIN
+-- Next extraction at 10:10:00 captures it AGAIN
 
--- Result: Duplicate in customer's data warehouse
+-- Result: Duplicate in the data warehouse
 ```
 
 **Solution:** Implement proper upsert/merge logic in your data warehouse.
@@ -666,22 +509,6 @@ When extracting all tenants (`@TenantIdList = NULL`), tenant data loads sequenti
 EXEC pipeline.sp_GetAssignments
     @LastUpdatedStart = '2025-07-11 11:00:00',
     @LastUpdatedEnd = '2025-07-12 11:00:00',
-    @RowCount = 50000;
-```
-
-2. **Extract tenants separately**
-```sql
--- Separate job for each tenant, scheduled after that tenant's load
--- Job 1: After Tenant A completes (08:30)
-EXEC pipeline.sp_GetAssignments
-    @TenantIdList = 'TENANT-A-GUID',
-    @LastUpdatedStart = @LastRun,
-    @RowCount = 50000;
-
--- Job 2: After Tenant B completes (09:00)
-EXEC pipeline.sp_GetAssignments
-    @TenantIdList = 'TENANT-B-GUID',
-    @LastUpdatedStart = @LastRun,
     @RowCount = 50000;
 ```
 
@@ -718,10 +545,7 @@ EXEC pipeline.sp_GetSomeEntity
 
 **When to use:** All entities that are NOT marked as "Insert Only" in the [Entity Catalog](#entity-catalog)
 
-Records may appear in multiple extractions when:
-- Using **Strategy A (PagingId)**: Record is updated in Analytics store, gets new PagingId
-- Using **Strategy B (LastId + Timestamp)**: Record is updated in Analytics store, gets new LastLoaded timestamp
-- The entity supports updates (not Insert Only)
+Records may appear in multiple extractions 
 
 **Why this matters:**
 
@@ -735,8 +559,8 @@ Records may appear in multiple extractions when:
 -- Next extraction with @LastPagingId = 0x1000
 -- Gets Assignment ABC again with Status = 'Complete'
 
--- Without proper handling: TWO records in your warehouse ❌
--- With upsert/merge: ONE record, updated status ✅
+-- Without proper handling: TWO records in your warehouse. This may be what you desire.
+-- With upsert/merge: ONE record, updated status.
 ```
 
 #### Implementation Examples
@@ -873,9 +697,6 @@ for _, row in df.iterrows():
 
 1. **Always use the entity's primary key** (usually `Id` column) for matching
 2. **Update ALL columns** on match, don't skip columns
-3. **Include ETL audit columns** (`ETL_CreatedAt`, `ETL_UpdatedAt`) to track changes
-4. **Test your merge logic** with known duplicates before production
-5. **Monitor for merge failures** - they indicate data quality issues
 
 #### Insert-Only Tables
 
@@ -898,9 +719,9 @@ Refer to the [Entity Catalog](#entity-catalog) to identify which tables are Inse
 
 | Classification | Recommended Batch Size | Notes |
 |----------------|------------------------|-------|
-| Extra Large | 10,000 - 50,000 | Balance between throughput and memory |
-| Large | 50,000 - 100,000 | Can use max for most cases |
-| Medium | 10,000 - 100,000 | Depends on customer data volume |
+| Extra Large | 50,000 - 100,000 | Balance between throughput and memory |
+| Large | 10,000 - 50,000 | Can use max for most cases |
+| Medium | 1,000 - 10,000 | Depends on data volume |
 | Small | Maximum allowed | Usually completes in single call |
 
 ### 5. Soft Delete Handling
@@ -918,208 +739,7 @@ EXEC pipeline.sp_GetAssignments
 -- Process deletes in your transformation layer
 ```
 
-### 6. Multi-Tenant Considerations
-
-**Option A: Single Job, All Tenants**
-```sql
--- Extract all tenants together
-EXEC pipeline.sp_GetAssignments 
-    @TenantIdList = NULL,
-    @RowCount = 100000;
-
--- Partition data by TenantId in your data warehouse
-```
-
-⚠️ **Important:** When using Strategy B (LastId + Timestamp) with all tenants:
-- Schedule extractions after all tenant loads complete
-- Alternatively, use Strategy A (PagingId) which handles multi-tenant timing automatically
-- See [Strategy B: Important Considerations](#strategy-b-important-considerations) for details
-
-**Option B: Separate Jobs per Tenant**
-```sql
--- Create separate ETL jobs for each tenant
-EXEC pipeline.sp_GetAssignments 
-    @TenantIdList = 'TENANT-001',
-    @RowCount = 50000;
-```
-
-✅ **Advantage:** Eliminates multi-tenant timing concerns with Strategy B
-- Each job can be scheduled independently
-- Align each job with that tenant's load completion time
-
-## Code Examples
-
-### Example 1: C# Integration (ADO.NET)
-
-```csharp
-using System;
-using System.Data;
-using System.Data.SqlClient;
-
-public class ObzervDataPipeline
-{
-    private readonly string _connectionString;
-    
-    public ObzervDataPipeline(string connectionString)
-    {
-        _connectionString = connectionString;
-    }
-    
-    public async Task ExtractAssignmentsIncremental(
-        DateTime lastLoadTime, 
-        byte[] lastPagingId = null)
-    {
-        using (var connection = new SqlConnection(_connectionString))
-        {
-            await connection.OpenAsync();
-            
-            using (var command = new SqlCommand("pipeline.sp_GetAssignments", connection))
-            {
-                command.CommandType = CommandType.StoredProcedure;
-                command.CommandTimeout = 300; // 5 minutes
-                
-                // Add parameters
-                command.Parameters.AddWithValue("@TenantIdList", DBNull.Value);
-                command.Parameters.AddWithValue("@RowCount", 50000);
-                command.Parameters.AddWithValue("@LastUpdatedStart", lastLoadTime);
-                command.Parameters.AddWithValue("@LastUpdatedEnd", DateTime.UtcNow);
-                
-                if (lastPagingId != null)
-                    command.Parameters.AddWithValue("@LastPagingId", lastPagingId);
-                else
-                    command.Parameters.AddWithValue("@LastPagingId", DBNull.Value);
-                
-                try
-                {
-                    using (var reader = await command.ExecuteReaderAsync())
-                    {
-                        while (await reader.ReadAsync())
-                        {
-                            // Process each row
-                            var assignment = new Assignment
-                            {
-                                Id = reader.GetGuid(reader.GetOrdinal("Id")),
-                                TenantId = reader.GetString(reader.GetOrdinal("TenantId")),
-                                AssignmentCode = reader.GetString(reader.GetOrdinal("AssignmentCode")),
-                                Status = reader.GetString(reader.GetOrdinal("Status")),
-                                LastUpdated = reader.GetDateTime(reader.GetOrdinal("LastUpdated")),
-                                IsDeleted = reader.GetBoolean(reader.GetOrdinal("IsDeleted")),
-                                PagingId = (byte[])reader["PagingId"]
-                            };
-                            
-                            // Insert/Update in your data warehouse
-                            await UpsertAssignment(assignment);
-                        }
-                    }
-                }
-                catch (SqlException ex) when (ex.Number == 50001)
-                {
-                    // Handle rate limiting
-                    Console.WriteLine("Rate limited. Implementing backoff...");
-                    await Task.Delay(TimeSpan.FromSeconds(30));
-                    throw; // Retry in calling code
-                }
-            }
-        }
-    }
-    
-    private async Task UpsertAssignment(Assignment assignment)
-    {
-        // Your data warehouse upsert logic
-    }
-}
-
-public class Assignment
-{
-    public Guid Id { get; set; }
-    public string TenantId { get; set; }
-    public string AssignmentCode { get; set; }
-    public string Status { get; set; }
-    public DateTime LastUpdated { get; set; }
-    public bool IsDeleted { get; set; }
-    public byte[] PagingId { get; set; }
-}
-```
-
-### Example 2: Python Integration (pyodbc)
-
-```python
-import pyodbc
-import time
-from datetime import datetime, timedelta
-
-class ObzervPipeline:
-    def __init__(self, connection_string):
-        self.connection_string = connection_string
-    
-    def extract_assignments_incremental(self, last_load_time, last_paging_id=None):
-        """
-        Extract assignments using incremental pattern
-        """
-        retry_count = 0
-        max_retries = 3
-        
-        while retry_count < max_retries:
-            try:
-                with pyodbc.connect(self.connection_string, timeout=300) as conn:
-                    cursor = conn.cursor()
-                    
-                    # Call stored procedure
-                    cursor.execute("""
-                        EXEC pipeline.sp_GetAssignments
-                            @TenantIdList = ?,
-                            @RowCount = ?,
-                            @LastUpdatedStart = ?,
-                            @LastUpdatedEnd = ?,
-                            @LastPagingId = ?
-                    """, 
-                    None,  # TenantIdList - NULL for all
-                    50000,  # RowCount
-                    last_load_time,
-                    datetime.utcnow(),
-                    last_paging_id)
-                    
-                    rows = cursor.fetchall()
-                    columns = [column[0] for column in cursor.description]
-                    
-                    # Process results
-                    for row in rows:
-                        record = dict(zip(columns, row))
-                        self.upsert_assignment(record)
-                    
-                    # Get max PagingId for next batch
-                    if rows:
-                        max_paging_id = rows[-1].PagingId
-                        return max_paging_id
-                    
-                    return None
-                    
-            except pyodbc.Error as ex:
-                sqlstate = ex.args[0] if ex.args else None
-                
-                # Check for rate limit error (50001)
-                if sqlstate and '50001' in str(ex):
-                    retry_count += 1
-                    wait_time = 30 * (2 ** retry_count)  # Exponential backoff
-                    print(f"Rate limited. Waiting {wait_time} seconds...")
-                    time.sleep(wait_time)
-                else:
-                    raise
-        
-        raise Exception("Max retries exceeded due to rate limiting")
-    
-    def upsert_assignment(self, record):
-        """Insert or update assignment in data warehouse"""
-        # Your data warehouse logic here
-        pass
-
-# Usage
-pipeline = ObzervPipeline("Driver={ODBC Driver 17 for SQL Server};Server=...")
-last_load = datetime.utcnow() - timedelta(days=1)
-pipeline.extract_assignments_incremental(last_load)
-```
-
-### Example 3: SSIS Pattern (T-SQL)
+### T-SQL Example
 
 ```sql
 -- Step 1: Control Flow Variable Setup
@@ -1131,8 +751,8 @@ DECLARE @RowsProcessed int;
 DECLARE @TotalRows int = 0;
 DECLARE @BatchSize int = 50000;
 
--- Get last successful load time from control table
-SELECT @LastLoadTime = LastSuccessfulLoad 
+-- Get last successful load paging id from control table
+SELECT @LastPagingId = LastSuccessfulLoad 
 FROM ETL.ControlTable 
 WHERE EntityName = 'DimAssignments';
 
@@ -1326,13 +946,5 @@ For technical support regarding the Data Pipeline:
 - **Rate Limiting Issues**: Contact your Obzervr administrator for lease configuration
 - **Bug Reports**: Submit through your organization's support channel
 - **Feature Requests**: Discuss with your Obzervr account manager
-
----
-
-## Document Version History
-
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2025-07-12 | System | Initial specification document |
 
 ---
