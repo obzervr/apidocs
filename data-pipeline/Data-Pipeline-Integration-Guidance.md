@@ -125,23 +125,71 @@ Use for initial data warehouse population or full refreshes.
 ```sql
 DECLARE @PagingId rowversion = NULL;
 DECLARE @BatchSize int = 10000;
+DECLARE @RowsProcessed int;
 
--- Loop until no more records
+-- Create temp table (adjust column definitions to match your stored procedure output)
+-- Note: PagingId should be binary(8) or varbinary(8), not rowversion, since we're inserting into it
+CREATE TABLE #ResultSet (
+	[TenantId] [uniqueidentifier] NOT NULL,
+	[Id] [uniqueidentifier] NOT NULL,
+	[AssignmentCode] [nvarchar](50) NOT NULL,
+	[AssignmentPointId] [uniqueidentifier] NOT NULL,
+	[AssignedTo] [uniqueidentifier] NULL,
+	[FromDate] [datetime2](7) NOT NULL,
+	[ToDate] [datetime2](7) NOT NULL,
+	[Status] [int] NOT NULL,
+	[CreatedBy] [uniqueidentifier] NOT NULL,
+	[WorkTemplateId] [uniqueidentifier] NULL,
+	[TeamId] [uniqueidentifier] NULL,
+	[CompletedBy] [uniqueidentifier] NULL,
+	[FinalisedBy] [uniqueidentifier] NULL,
+	[CompletedOn] [datetime2](7) NULL,
+	[FinalisedOn] [datetime2](7) NULL,
+	[CancelledOn] [datetime2](7) NOT NULL,
+	[DeclinedOn] [datetime2](7) NULL,
+	[RequiredDate] [datetime2](7) NULL,
+	[AssignmentCategoryId] [uniqueidentifier] NULL,
+	[AssignmentTitle] [nvarchar](200) NULL,
+	[Revision] [nvarchar](25) NULL,
+	[Effort] [bigint] NULL,
+	[CreatedDate] [datetimeoffset](7) NULL,
+	[LastLoaded] [datetimeoffset](7) NOT NULL,
+	[PagingId] binary(8) NOT NULL, -- Changed from rowversion to binary(8) to allow INSERT
+	[IsDeleted] [bit] NOT NULL,
+);
+
+-- Loop through all batches
 WHILE 1=1
 BEGIN
+    -- Get next batch
+    INSERT INTO #ResultSet
     EXEC pipeline.sp_GetAssignments
         @TenantIdList = NULL,
         @RowCount = @BatchSize,
         @LastPagingId = @PagingId;
     
-    -- Store results in temp table/staging area
-    -- Get max PagingId from result set
-    SET @PagingId = (SELECT MAX(PagingId) FROM #ResultSet);
+    SET @RowsProcessed = @@ROWCOUNT;
     
     -- Exit if no more records
-    IF @@ROWCOUNT = 0 OR @@ROWCOUNT < @BatchSize
+    IF @RowsProcessed = 0
+        BREAK;
+    
+    -- Process the data in #ResultSet here
+    -- (Insert into staging table, data warehouse, etc.)
+    
+    -- Get last PagingId for next iteration (results are ordered by PagingId)
+    SELECT TOP 1 @PagingId = PagingId FROM #ResultSet ORDER BY PagingId DESC;
+    
+    -- Clear temp table for next batch
+    TRUNCATE TABLE #ResultSet;
+    
+    -- Exit if less than full batch (last page)
+    IF @RowsProcessed < @BatchSize
         BREAK;
 END
+
+-- Clean up
+DROP TABLE #ResultSet;
 ```
 
 ### Pattern 2: Incremental Load (Date-Based)
