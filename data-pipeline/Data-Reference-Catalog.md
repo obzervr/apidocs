@@ -34,9 +34,9 @@ This catalog provides comprehensive documentation for all stored procedures avai
 
 | Table Name | Classification | Stored Procedure | Max Page Size | Paging Required | Soft Delete |
 |------------|----------------|------------------|---------------|-----------------|-------------|
-| [FactAssignmentDetailsSnapshot](#factassignmentdetailssnapshot) | Extra Large | `pipeline.sp_GeAssignmentDetailsSnapshot` | 100,000 | Yes | No |
+| [FactAssignmentDetailsSnapshot](#factassignmentdetailssnapshot) | Extra Large | `pipeline.sp_GetAssignmentDetailsSnapshot` | 100,000 | Yes | No |
 | [FactAssignmentProgressSnapshot](#factassignmentprogresssnapshot) | Extra Large | `pipeline.sp_GetAssignmentProgressSnapshot` | 100,000 | Yes | No |
-| [FactAuditCommandCountSnapshotHourly](#factauditcommandcountsnapshothourly) | Extra Large | `pipeline.sp_GetFactAuditCommandCountSnapshotHourly` | 100,000 | Yes | No |
+| [FactAuditCommandCountSnapshotHourly](#factauditcommandcountsnapshothourly) | Extra Large | `pipeline.sp_GetAuditCommandCountSnapshotHourly` | 100,000 | Yes | No |
 | [FactAuditsUserAssignment](#factauditsuserassignment) | Extra Large | `pipeline.sp_GetAuditsUserAssignment` | 100,000 | Yes | No |
 | [FactTimeSeries](#facttimeseries) | Extra Large | `pipeline.sp_GetTimeSeries` | 100,000 | Yes | Yes |
 | [FactTimeSeriesFieldMeasurements](#facttimeseriesfieldmeasurements) | Extra Large | `pipeline.sp_GetTimeSeriesFieldMeasurements` | 1,000,000 | Yes | Yes |
@@ -59,7 +59,7 @@ This catalog provides comprehensive documentation for all stored procedures avai
 | [DimWorkTemplates](#dimworktemplates) | Small | `pipeline.sp_GetWorkTemplates` | 1,000 | Yes | Yes |
 | [FactFieldMeasurementTables](#factfieldmeasurementtables) | Small | `pipeline.sp_GetFieldMeasurementTableContents` | 10,000 | Yes | Yes |
 | [FactTeamUsers](#factteamusers) | Small | `pipeline.sp_GetTeamUsers` | 1,000 | Yes | Yes |
-| [FactTemplateGroupWorkTemplates](#facttemplategroupworktemplates) | Small | `pipeline.sp_GetTemplateGroupWorkTemplates` | 100 | Yes | No |
+| [FactTemplateGroupWorkTemplates](#facttemplategroupworktemplates) | Small | `pipeline.sp_GetTemplateGroupTemplates` | 100 | Yes | No |
 | [FactTimeSeriesSectionDocuments](#facttimeseriessectiondocuments) | Small | `pipeline.sp_GetTimeSeriesSectionDocuments` | 10,000 | Yes | No |
 | [LabelAlias](#labelalias) | Small | `pipeline.sp_GetLabelAlias` | 100 | No | Yes |
 | [TenantSettings](#tenantsettings) | Small | `pipeline.sp_GetTenants` | 10 | No | No |
@@ -72,7 +72,7 @@ This catalog provides comprehensive documentation for all stored procedures avai
 
 ### FactAssignmentDetailsSnapshot
 
-**Stored Procedure:** `pipeline.sp_GeAssignmentDetailsSnapshot`
+**Stored Procedure:** `pipeline.sp_GetAssignmentDetailsSnapshot`
 
 #### Metadata
 
@@ -86,10 +86,17 @@ This catalog provides comprehensive documentation for all stored procedures avai
 | Soft Delete Supported | No |
 | Insert Only | Yes |
 
+#### Description
+
+Retrieves point-in-time snapshots of assignment details showing status changes,
+team assignments, and user assignments over time. Use for tracking assignment
+lifecycle, historical analysis, and understanding how assignments evolve.
+Supports temporal analysis of assignment ownership and status transitions.
+
 #### Usage Example
 
 ```sql
-exec pipeline.sp_GeAssignmentDetailsSnapshot
+exec pipeline.sp_GetAssignmentDetailsSnapshot
 @LastPagingId = 0x0000000000003030
 ```
 
@@ -119,16 +126,16 @@ CREATE TABLE [dbo].[Staging_FactAssignmentDetailsSnapshot]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
-| UserId | uniqueidentifier | Foreign key reference to related User record |
-| TeamId | uniqueidentifier | Foreign key reference to related Team record |
-| Status | nvarchar | Current status of the record |
-| AssignedTo | nvarchar | Data field |
-| FromDate | datetime2 | Date/time timestamp |
-| ToDate | datetime2 | Date/time timestamp |
-| RequiredDate | datetime2 | Date/time timestamp |
-| SnapshotTimestamp | nvarchar | Data field |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| AssignmentId | uniqueidentifier | Links to the parent assignment record being tracked |
+| UserId | uniqueidentifier | User assigned to this assignment at the time of snapshot |
+| TeamId | uniqueidentifier | Team responsible for this assignment at the time of snapshot |
+| Status | nvarchar | Assignment status at snapshot time (e.g., Open, In Progress, Completed, Closed) |
+| AssignedTo | nvarchar | Display name or identifier of the assigned entity (user or team) |
+| FromDate | datetime2 | Start date/time when this assignment configuration became active |
+| ToDate | datetime2 | End date/time when this assignment configuration ended (NULL if current) |
+| RequiredDate | datetime2 | Due date or required completion date for the assignment |
+| SnapshotTimestamp | nvarchar | Date/time when this snapshot record was captured |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | LastLoaded | datetime2 | Timestamp of last modification, used for incremental loading |
 
@@ -150,6 +157,12 @@ CREATE TABLE [dbo].[Staging_FactAssignmentDetailsSnapshot]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | No |
 | Insert Only | Yes |
+
+#### Description
+
+Captures assignment progress metrics at specific points in time, tracking completion
+percentages across planning, work, and overall completion dimensions. Essential for
+monitoring project progress, velocity tracking, and identifying bottlenecks in workflow.
 
 **Notes:** This snapshot is only for work order complete% purpose, I cannot see any use case for analytics
 
@@ -186,16 +199,16 @@ CREATE TABLE [dbo].[Staging_FactAssignmentProgressSnapshot]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
-| TotalPercent | nvarchar | Data field |
-| PlanPercent | nvarchar | Data field |
-| WorkPercent | nvarchar | Data field |
-| CompletePercent | nvarchar | Data field |
-| Total | nvarchar | Data field |
-| Complete | nvarchar | Data field |
-| LastSyncTimestamp | nvarchar | Data field |
-| SnapshotTimestamp | nvarchar | Data field |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| AssignmentId | uniqueidentifier | Links to the assignment being measured |
+| TotalPercent | nvarchar | Overall completion percentage (0-100) across all dimensions |
+| PlanPercent | nvarchar | Percentage of planning phase completed |
+| WorkPercent | nvarchar | Percentage of work/execution phase completed |
+| CompletePercent | nvarchar | Percentage of completion/closeout phase completed |
+| Total | nvarchar | Total count or measure of assignment items |
+| Complete | nvarchar | Count or measure of completed assignment items |
+| LastSyncTimestamp | nvarchar | Timestamp when data was last synchronized from source system |
+| SnapshotTimestamp | nvarchar | Date/time when this progress snapshot was captured |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | LastLoaded | datetime2 | Timestamp of last modification, used for incremental loading |
 
@@ -204,7 +217,7 @@ CREATE TABLE [dbo].[Staging_FactAssignmentProgressSnapshot]
 
 ### FactAuditCommandCountSnapshotHourly
 
-**Stored Procedure:** `pipeline.sp_GetFactAuditCommandCountSnapshotHourly`
+**Stored Procedure:** `pipeline.sp_GetAuditCommandCountSnapshotHourly`
 
 #### Metadata
 
@@ -217,6 +230,12 @@ CREATE TABLE [dbo].[Staging_FactAssignmentProgressSnapshot]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | No |
 | Insert Only | Yes |
+
+#### Description
+
+Provides hourly aggregated counts of commands executed by users, enabling usage analytics,
+performance monitoring, and user activity tracking. Use for understanding system utilization
+patterns, identifying peak usage times, and user engagement analysis.
 
 #### Usage Example
 
@@ -246,11 +265,11 @@ CREATE TABLE [dbo].[Staging_FactAuditCommandCountSnapshotHourly]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| UserId | uniqueidentifier | Foreign key reference to related User record |
-| CommandName | nvarchar | Data field |
-| Count | nvarchar | Data field |
-| SnapshotTimestamp | nvarchar | Data field |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| UserId | uniqueidentifier | User who executed the commands |
+| CommandName | nvarchar | Name or identifier of the command/action executed |
+| Count | nvarchar | Number of times the command was executed in the snapshot period |
+| SnapshotTimestamp | nvarchar | Hourly timestamp marking when this aggregation was captured |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | LastLoaded | datetime2 | Timestamp of last modification, used for incremental loading |
 
@@ -272,6 +291,12 @@ CREATE TABLE [dbo].[Staging_FactAuditCommandCountSnapshotHourly]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | No |
 | Insert Only | Yes |
+
+#### Description
+
+Records detailed audit trail of user actions on assignments, capturing who did what and when.
+Critical for compliance, troubleshooting, security analysis, and understanding user behavior
+patterns. Enables reconstruction of assignment lifecycle events.
 
 #### Usage Example
 
@@ -302,13 +327,13 @@ CREATE TABLE [dbo].[Staging_FactAuditsUserAssignment]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| UserId | uniqueidentifier | Foreign key reference to related User record |
-| CommandName | nvarchar | Data field |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
-| FiredTimestamp | nvarchar | Data field |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| Id | uniqueidentifier | Unique identifier for this audit record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| UserId | uniqueidentifier | User who performed the audited action |
+| CommandName | nvarchar | Name of the command or action that was audited |
+| AssignmentId | uniqueidentifier | Assignment that was affected by the action |
+| FiredTimestamp | nvarchar | Exact date/time when the audited event occurred |
+| LastUpdated | datetime2 | Timestamp of last modification to this audit record |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 
 ---
@@ -329,6 +354,10 @@ CREATE TABLE [dbo].[Staging_FactAuditsUserAssignment]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactTimeSeries data. Add detailed description here.
 
 #### Usage Example
 
@@ -368,11 +397,11 @@ CREATE TABLE [dbo].[Staging_FactTimeSeries]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| AssignmentId | uniqueidentifier | Links to the Assignment record |
 | LastOperatedAt | datetime2 | Date/time timestamp |
-| TimeSeriesTypeInstanceId | uniqueidentifier | Foreign key reference to related TimeSeriesTypeInstance record |
+| TimeSeriesTypeInstanceId | uniqueidentifier | Links to the TimeSeriesTypeInstance record |
 | SeriesInstanceName | nvarchar | Data field |
 | SeriesName | nvarchar | Data field |
 | SeriesIdentifier | nvarchar | Data field |
@@ -380,8 +409,8 @@ CREATE TABLE [dbo].[Staging_FactTimeSeries]
 | GroupFragmentReference | nvarchar | Data field |
 | CompletedAt | datetime2 | Date/time timestamp |
 | CompletedBy | nvarchar | Data field |
-| ParentId | uniqueidentifier | Foreign key reference to related Parent record |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| ParentId | uniqueidentifier | Links to the Parent record |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -404,6 +433,10 @@ CREATE TABLE [dbo].[Staging_FactTimeSeries]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactTimeSeriesFieldMeasurements data. Add detailed description here.
 
 #### Usage Example
 
@@ -428,6 +461,7 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurements]
     [CompletedAt] datetime2(7) NULL,
     [CapturedBy] nvarchar(MAX) NULL,
     [CompletedBy] nvarchar(MAX) NULL,
+    [FieldMeasurementName] nvarchar(MAX) NULL,
     [New_Name] nvarchar(MAX) NULL,
     [FieldMeasurementName] nvarchar(MAX) NULL,
     [FieldMeasurementIdentifier] nvarchar(MAX) NULL,
@@ -453,22 +487,23 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurements]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| ATSFMId | uniqueidentifier | Foreign key reference to related ATSFM record |
-| TimeSeriesId | uniqueidentifier | Foreign key reference to related TimeSeries record |
-| Comments | nvarchar | Data field |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| ATSFMId | uniqueidentifier | Links to the ATSFM record |
+| TimeSeriesId | uniqueidentifier | Links to the TimeSeries record |
+| Comments | nvarchar | Additional notes or comments |
 | CapturedOn | datetime2 | Date/time timestamp |
 | CompletedAt | datetime2 | Date/time timestamp |
 | CapturedBy | nvarchar | Data field |
 | CompletedBy | nvarchar | Data field |
+| FieldMeasurementName | nvarchar | Data field |
 | New_Name | nvarchar | Data field |
 | FieldMeasurementName | nvarchar | Data field |
 | FieldMeasurementIdentifier | nvarchar | Data field |
 | SectionName | nvarchar | Data field |
 | SectionIdentifier | nvarchar | Data field |
 | DataType | nvarchar | Data field |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
+| AssignmentId | uniqueidentifier | Links to the Assignment record |
 | LowerBoundary | nvarchar | Data field |
 | UpperBoundary | nvarchar | Data field |
 | Preface | nvarchar | Data field |
@@ -476,7 +511,7 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurements]
 | Unit | nvarchar | Data field |
 | Reading | decimal | Data field |
 | SelectedMultiSelectValue | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -499,6 +534,10 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurements]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimAssignments data. Add detailed description here.
 
 #### Usage Example
 
@@ -547,17 +586,17 @@ CREATE TABLE [dbo].[Staging_DimAssignments]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| Id | uniqueidentifier | Unique identifier for the record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| Id | uniqueidentifier | Unique identifier for this record |
 | AssignmentCode | nvarchar | Data field |
-| AssignmentPointId | uniqueidentifier | Foreign key reference to related AssignmentPoint record |
+| AssignmentPointId | uniqueidentifier | Links to the AssignmentPoint record |
 | AssignedTo | nvarchar | Data field |
 | FromDate | datetime2 | Date/time timestamp |
 | ToDate | datetime2 | Date/time timestamp |
 | Status | nvarchar | Current status of the record |
-| CreatedBy | nvarchar | User ID who created the record |
-| WorkTemplateId | uniqueidentifier | Foreign key reference to related WorkTemplate record |
-| TeamId | uniqueidentifier | Foreign key reference to related Team record |
+| CreatedBy | nvarchar | User who created this record |
+| WorkTemplateId | uniqueidentifier | Links to the WorkTemplate record |
+| TeamId | uniqueidentifier | Links to the Team record |
 | CompletedBy | nvarchar | Data field |
 | FinalisedBy | nvarchar | Data field |
 | CompletedOn | datetime2 | Date/time timestamp |
@@ -565,11 +604,11 @@ CREATE TABLE [dbo].[Staging_DimAssignments]
 | CancelledOn | datetime2 | Date/time timestamp |
 | DeclinedOn | datetime2 | Date/time timestamp |
 | RequiredDate | datetime2 | Date/time timestamp |
-| AssignmentCategoryId | uniqueidentifier | Foreign key reference to related AssignmentCategory record |
+| AssignmentCategoryId | uniqueidentifier | Links to the AssignmentCategory record |
 | AssignmentTitle | nvarchar | Data field |
 | Revision | int | Data field |
 | Effort | decimal | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -592,6 +631,10 @@ CREATE TABLE [dbo].[Staging_DimAssignments]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | No |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactAssignmentDeclinedReasons data. Add detailed description here.
 
 #### Usage Example
 
@@ -625,15 +668,15 @@ CREATE TABLE [dbo].[Staging_FactAssignmentDeclinedReasons]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| AssignmentId | uniqueidentifier | Links to the Assignment record |
 | DeclinedBy | nvarchar | Data field |
 | DeclinedOn | datetime2 | Date/time timestamp |
 | DeclinedByFullName | nvarchar | Data field |
 | ReasonForDecliningComment | nvarchar | Data field |
 | ReasonForDeclining | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 
@@ -655,6 +698,10 @@ CREATE TABLE [dbo].[Staging_FactAssignmentDeclinedReasons]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | No |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactAssignmentExceptions data. Add detailed description here.
 
 #### Usage Example
 
@@ -692,10 +739,10 @@ CREATE TABLE [dbo].[Staging_FactAssignmentExceptions]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
-| FieldMeasureId | uniqueidentifier | Foreign key reference to related FieldMeasure record |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| AssignmentId | uniqueidentifier | Links to the Assignment record |
+| FieldMeasureId | uniqueidentifier | Links to the FieldMeasure record |
 | Priority | nvarchar | Data field |
 | RaisedAt | datetime2 | Date/time timestamp |
 | RaisedBy | nvarchar | Data field |
@@ -703,8 +750,8 @@ CREATE TABLE [dbo].[Staging_FactAssignmentExceptions]
 | ResolvedAt | datetime2 | Date/time timestamp |
 | ResolvedBy | nvarchar | Data field |
 | ResolvedByName | nvarchar | Data field |
-| Comment | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| Comment | nvarchar | Additional notes or comments |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -726,6 +773,10 @@ CREATE TABLE [dbo].[Staging_FactAssignmentExceptions]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactAssignmentFieldOperators data. Add detailed description here.
 
 #### Usage Example
 
@@ -756,11 +807,11 @@ CREATE TABLE [dbo].[Staging_FactAssignmentFieldOperators]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
-| FieldOperatorId | uniqueidentifier | Foreign key reference to related FieldOperator record |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| AssignmentId | uniqueidentifier | Links to the Assignment record |
+| FieldOperatorId | uniqueidentifier | Links to the FieldOperator record |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -783,6 +834,10 @@ CREATE TABLE [dbo].[Staging_FactAssignmentFieldOperators]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactAssignmentTags data. Add detailed description here.
 
 #### Usage Example
 
@@ -817,15 +872,15 @@ CREATE TABLE [dbo].[Staging_FactAssignmentTags]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
-| AssignmentId | uniqueidentifier | Foreign key reference to related Assignment record |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| AssignmentId | uniqueidentifier | Links to the Assignment record |
+| AssignmentId | uniqueidentifier | Links to the Assignment record |
 | Key | nvarchar | Data field |
 | Value | nvarchar | Data field |
-| IsVisible | bit | Boolean flag |
-| IsInteractive | bit | Boolean flag |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| IsVisible | bit | Indicates if visible condition is true |
+| IsInteractive | bit | Indicates if interactive condition is true |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -848,6 +903,10 @@ CREATE TABLE [dbo].[Staging_FactAssignmentTags]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimAssignmentPoints data. Add detailed description here.
 
 **Notes:** It is Large to Extra Large based on customers. Bluescope has Extra large data
 
@@ -885,16 +944,16 @@ CREATE TABLE [dbo].[Staging_DimAssignmentPoints]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| PointId | uniqueidentifier | Foreign key reference to related Point record |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| PointId | uniqueidentifier | Links to the Point record |
 | PointName | nvarchar | Data field |
-| ParentId | uniqueidentifier | Foreign key reference to related Parent record |
-| SubsiteId | uniqueidentifier | Foreign key reference to related Subsite record |
+| ParentId | uniqueidentifier | Links to the Parent record |
+| SubsiteId | uniqueidentifier | Links to the Subsite record |
 | AssignmentPointTypeName | nvarchar | Data field |
 | APLatitude | nvarchar | Data field |
 | APLongitude | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -917,6 +976,10 @@ CREATE TABLE [dbo].[Staging_DimAssignmentPoints]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactAssignmentPointAttributes data. Add detailed description here.
 
 **Notes:** It is Large to Extra Large based on customers. Bluescope has Extra large data
 
@@ -950,13 +1013,13 @@ CREATE TABLE [dbo].[Staging_FactAssignmentPointAttributes]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | AttributeName | nvarchar | Data field |
 | AttributeValue | nvarchar | Data field |
 | AttributeGroupName | nvarchar | Data field |
-| AssignmentPointId | uniqueidentifier | Foreign key reference to related AssignmentPoint record |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| AssignmentPointId | uniqueidentifier | Links to the AssignmentPoint record |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 
@@ -978,6 +1041,10 @@ CREATE TABLE [dbo].[Staging_FactAssignmentPointAttributes]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | No |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactTimeSeriesFieldMeasurementDocuments data. Add detailed description here.
 
 #### Usage Example
 
@@ -1010,14 +1077,14 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurementDocuments]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| DocumentId | uniqueidentifier | Foreign key reference to related Document record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
+| DocumentId | uniqueidentifier | Links to the Document record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | TimeSeriesFieldMeasurementID | nvarchar | Data field |
-| AssignmentTimeSeriesFieldMeasurementId | uniqueidentifier | Foreign key reference to related AssignmentTimeSeriesFieldMeasurement record |
-| ParentId | uniqueidentifier | Foreign key reference to related Parent record |
+| AssignmentTimeSeriesFieldMeasurementId | uniqueidentifier | Links to the AssignmentTimeSeriesFieldMeasurement record |
+| ParentId | uniqueidentifier | Links to the Parent record |
 | FileName | nvarchar | Data field |
 | DocumentURL | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -1039,6 +1106,10 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurementDocuments]
 | Paging (Historical) | No |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimAssignmentCategories data. Add detailed description here.
 
 #### Usage Example
 
@@ -1070,13 +1141,13 @@ CREATE TABLE [dbo].[Staging_DimAssignmentCategories]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | Category | nvarchar | Data field |
 | Code | nvarchar | Unique code or identifier |
 | Color | nvarchar | Data field |
 | Critical | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
@@ -1099,6 +1170,10 @@ CREATE TABLE [dbo].[Staging_DimAssignmentCategories]
 | Paging (Historical) | No |
 | Soft Delete Supported | No |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimAssignmentStatus data. Add detailed description here.
 
 **Notes:** Lookup table only
 
@@ -1124,7 +1199,7 @@ CREATE TABLE [dbo].[Staging_DimAssignmentStatus]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
+| Id | uniqueidentifier | Unique identifier for this record |
 | Name | nvarchar | Display name |
 
 ---
@@ -1145,6 +1220,10 @@ CREATE TABLE [dbo].[Staging_DimAssignmentStatus]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimFieldMeasurementTables data. Add detailed description here.
 
 #### Usage Example
 
@@ -1174,11 +1253,11 @@ CREATE TABLE [dbo].[Staging_DimFieldMeasurementTables]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | Column1Name | nvarchar | Data field |
 | Column2Name | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -1201,6 +1280,10 @@ CREATE TABLE [dbo].[Staging_DimFieldMeasurementTables]
 | Paging (Historical) | No |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimSites data. Add detailed description here.
 
 #### Usage Example
 
@@ -1239,9 +1322,9 @@ CREATE TABLE [dbo].[Staging_DimSites]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| SiteId | uniqueidentifier | Foreign key reference to related Site record |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| SiteId | uniqueidentifier | Links to the Site record |
 | SiteName | nvarchar | Data field |
 | SiteAddressLine1 | nvarchar | Data field |
 | SiteAddressLine2 | nvarchar | Data field |
@@ -1252,7 +1335,7 @@ CREATE TABLE [dbo].[Staging_DimSites]
 | SiteUsageDescription | nvarchar | Data field |
 | APLatitude | nvarchar | Data field |
 | APLongitude | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -1275,6 +1358,10 @@ CREATE TABLE [dbo].[Staging_DimSites]
 | Paging (Historical) | No |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimSubSites data. Add detailed description here.
 
 #### Usage Example
 
@@ -1314,9 +1401,9 @@ CREATE TABLE [dbo].[Staging_DimSubSites]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| SubSiteId | uniqueidentifier | Foreign key reference to related SubSite record |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| SubSiteId | uniqueidentifier | Links to the SubSite record |
 | SubSiteName | nvarchar | Data field |
 | SubSiteAddressLine1 | nvarchar | Data field |
 | SubSiteAddressLine2 | nvarchar | Data field |
@@ -1327,8 +1414,8 @@ CREATE TABLE [dbo].[Staging_DimSubSites]
 | SubSiteUsageDescription | nvarchar | Data field |
 | APLatitude | nvarchar | Data field |
 | APLongitude | nvarchar | Data field |
-| ParentSiteId | uniqueidentifier | Foreign key reference to related ParentSite record |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| ParentSiteId | uniqueidentifier | Links to the ParentSite record |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -1351,6 +1438,10 @@ CREATE TABLE [dbo].[Staging_DimSubSites]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimTeams data. Add detailed description here.
 
 #### Usage Example
 
@@ -1387,11 +1478,11 @@ CREATE TABLE [dbo].[Staging_DimTeams]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | Name | nvarchar | Display name |
-| Description | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| Description | nvarchar | Detailed description or notes |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -1421,6 +1512,10 @@ CREATE TABLE [dbo].[Staging_DimTeams]
 | Paging (Historical) | No |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimTemplateGroups data. Add detailed description here.
 
 #### Usage Example
 
@@ -1452,14 +1547,14 @@ CREATE TABLE [dbo].[Staging_DimTemplateGroups]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| CreatedByUserId | uniqueidentifier | Foreign key reference to related CreatedByUser record |
-| UpdatedByUserId | uniqueidentifier | Foreign key reference to related UpdatedByUser record |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| CreatedByUserId | uniqueidentifier | Links to the CreatedByUser record |
+| UpdatedByUserId | uniqueidentifier | Links to the UpdatedByUser record |
 | Name | nvarchar | Display name |
 | Identifier | nvarchar | Unique code or identifier |
 | AccessControlled | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -1481,6 +1576,10 @@ CREATE TABLE [dbo].[Staging_DimTemplateGroups]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimUsers data. Add detailed description here.
 
 #### Usage Example
 
@@ -1518,14 +1617,14 @@ CREATE TABLE [dbo].[Staging_DimUsers]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| Id | uniqueidentifier | Unique identifier for the record |
-| UserId | uniqueidentifier | Foreign key reference to related User record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| Id | uniqueidentifier | Unique identifier for this record |
+| UserId | uniqueidentifier | Links to the User record |
 | Role | nvarchar | Data field |
 | UserCode | nvarchar | Data field |
-| Email | nvarchar | Data field |
-| FullName | nvarchar | Data field |
-| IsActive | bit | Boolean flag |
+| Email | nvarchar | Email address |
+| FullName | nvarchar | Complete display name |
+| IsActive | bit | Indicates if active condition is true |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | ReferenceCode | nvarchar | Data field |
@@ -1553,6 +1652,10 @@ CREATE TABLE [dbo].[Staging_DimUsers]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves DimWorkTemplates data. Add detailed description here.
 
 #### Usage Example
 
@@ -1588,17 +1691,17 @@ CREATE TABLE [dbo].[Staging_DimWorkTemplates]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | Identifier | nvarchar | Unique code or identifier |
 | Name | nvarchar | Display name |
 | Version | nvarchar | Data field |
 | TemplateLink | nvarchar | Data field |
 | FragmentType | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
-| IsPublished | bit | Boolean flag |
+| IsPublished | bit | Indicates if published condition is true |
 | Json | nvarchar | Data field |
 | bit | nvarchar | Data field |
 | nvarchar | nvarchar | Data field |
@@ -1621,6 +1724,10 @@ CREATE TABLE [dbo].[Staging_DimWorkTemplates]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactFieldMeasurementTables data. Add detailed description here.
 
 #### Usage Example
 
@@ -1652,13 +1759,13 @@ CREATE TABLE [dbo].[Staging_FactFieldMeasurementTables]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for the record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| FieldMeasurementTableDefinitionId | uniqueidentifier | Foreign key reference to related FieldMeasurementTableDefinition record |
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| FieldMeasurementTableDefinitionId | uniqueidentifier | Links to the FieldMeasurementTableDefinition record |
 | Column1 | nvarchar | Data field |
 | Column2 | nvarchar | Data field |
 | Reference | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -1681,6 +1788,10 @@ CREATE TABLE [dbo].[Staging_FactFieldMeasurementTables]
 | Paging (Historical) | Yes |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactTeamUsers data. Add detailed description here.
 
 #### Usage Example
 
@@ -1710,12 +1821,12 @@ CREATE TABLE [dbo].[Staging_FactTeamUsers]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| UserId | uniqueidentifier | Foreign key reference to related User record |
-| TeamId | uniqueidentifier | Foreign key reference to related Team record |
-| IsSupervisor | bit | Boolean flag |
-| IsMember | bit | Boolean flag |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| UserId | uniqueidentifier | Links to the User record |
+| TeamId | uniqueidentifier | Links to the Team record |
+| IsSupervisor | bit | Indicates if supervisor condition is true |
+| IsMember | bit | Indicates if member condition is true |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 
@@ -1724,7 +1835,7 @@ CREATE TABLE [dbo].[Staging_FactTeamUsers]
 
 ### FactTemplateGroupWorkTemplates
 
-**Stored Procedure:** `pipeline.sp_GetTemplateGroupWorkTemplates`
+**Stored Procedure:** `pipeline.sp_GetTemplateGroupTemplates`
 
 #### Metadata
 
@@ -1738,15 +1849,46 @@ CREATE TABLE [dbo].[Staging_FactTeamUsers]
 | Soft Delete Supported | No |
 | Insert Only | No |
 
+#### Description
+
+Retrieves FactTemplateGroupWorkTemplates data. Add detailed description here.
+
 #### Usage Example
 
 ```sql
-exec pipeline.sp_GetTemplateGroups
+exec pipeline.sp_GetTemplateGroupTemplates
+```
+
+#### Staging Table Helper Script
+
+Use this script to create a staging table that matches the stored procedure output.
+
+```sql
+CREATE TABLE [dbo].[Staging_FactTemplateGroupWorkTemplates]
+(
+    [Id] uniqueidentifier NULL,
+    [TenantId] uniqueidentifier NULL,
+    [TemplateGroupId] uniqueidentifier NULL,
+    [TemplateLink] nvarchar(MAX) NULL,
+    [LastUpdated] datetime2(7) NULL,
+    [PagingId] binary(8) NULL,  -- Converted from rowversion
+    [CreatedDate] datetime2(7) NULL,
+    [IsDeleted] bit NULL
+);
 ```
 
 #### Result Set Schema
 
-*Result set schema extraction pending. Please refer to stored procedure definition.*
+| Column Name | Data Type | Description |
+|-------------|-----------|-------------|
+| Id | uniqueidentifier | Unique identifier for this record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| TemplateGroupId | uniqueidentifier | Links to the TemplateGroup record |
+| TemplateLink | nvarchar | Data field |
+| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| PagingId | rowversion | Rowversion used for paging through large result sets |
+| CreatedDate | datetime2 | Date/time when this record was created |
+| IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
 ---
 
@@ -1766,6 +1908,10 @@ exec pipeline.sp_GetTemplateGroups
 | Paging (Historical) | Yes |
 | Soft Delete Supported | No |
 | Insert Only | No |
+
+#### Description
+
+Retrieves FactTimeSeriesSectionDocuments data. Add detailed description here.
 
 #### Usage Example
 
@@ -1799,16 +1945,16 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesSectionDocuments]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| DocumentId | uniqueidentifier | Foreign key reference to related Document record |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| ParentId | uniqueidentifier | Foreign key reference to related Parent record |
+| DocumentId | uniqueidentifier | Links to the Document record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| ParentId | uniqueidentifier | Links to the Parent record |
 | FileName | nvarchar | Data field |
 | DocumentKind | nvarchar | Data field |
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| AssignmentTimeSeriesFieldMeasurementSectionId | uniqueidentifier | Foreign key reference to related AssignmentTimeSeriesFieldMeasurementSection record |
-| TimeSeriesId | uniqueidentifier | Foreign key reference to related TimeSeries record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| AssignmentTimeSeriesFieldMeasurementSectionId | uniqueidentifier | Links to the AssignmentTimeSeriesFieldMeasurementSection record |
+| TimeSeriesId | uniqueidentifier | Links to the TimeSeries record |
 | DocumentURL | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -1830,6 +1976,10 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesSectionDocuments]
 | Paging (Historical) | No |
 | Soft Delete Supported | Yes |
 | Insert Only | No |
+
+#### Description
+
+Retrieves LabelAlias data. Add detailed description here.
 
 **Notes:** Tenant configuration table only
 
@@ -1862,12 +2012,12 @@ CREATE TABLE [dbo].[Staging_LabelAlias]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
-| Id | uniqueidentifier | Unique identifier for the record |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| Id | uniqueidentifier | Unique identifier for this record |
 | LabelKey | nvarchar | Data field |
 | LabelValue | nvarchar | Data field |
 | LabelPluralValue | nvarchar | Data field |
-| CreatedDate | datetime2 | Timestamp when the record was originally created |
+| CreatedDate | datetime2 | Date/time when this record was created |
 | LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
@@ -1890,6 +2040,10 @@ CREATE TABLE [dbo].[Staging_LabelAlias]
 | Paging (Historical) | No |
 | Soft Delete Supported | No |
 | Insert Only | No |
+
+#### Description
+
+Retrieves TenantSettings data. Add detailed description here.
 
 #### Usage Example
 
@@ -1925,7 +2079,7 @@ CREATE TABLE [dbo].[Staging_TenantSettings]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| TenantId | uniqueidentifier | Unique identifier for the tenant |
+| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | Timezone | nvarchar | Data field |
 | LogoBase64 | nvarchar | Data field |
 | TenantName | nvarchar | Data field |
