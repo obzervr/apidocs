@@ -161,8 +161,6 @@ Captures assignment progress metrics at specific points in time, tracking comple
 percentages across planning, work, and overall completion dimensions. Essential for
 monitoring project progress, velocity tracking, and identifying bottlenecks in workflow.
 
-**Notes:** This snapshot is only for work order complete% purpose, I cannot see any use case for analytics
-
 #### Usage Example
 
 ```sql
