@@ -1,8 +1,5 @@
 # Obzervr Data Pipeline - Data Reference Catalog
 
-**Version:** 1.0
-**Last Updated:** October 12, 2025
-
 ---
 
 ## Table of Contents
@@ -22,9 +19,9 @@ This catalog provides comprehensive documentation for all stored procedures avai
 
 ### Classification Levels
 
-- **Extra Large**: High-volume tables requiring careful paging strategy (100K+ rows)
-- **Large**: Significant data volumes, paging recommended (10K-100K rows)
-- **Medium**: Moderate data volumes, may vary by customer (1K-10K rows)
+- **Extra Large**: High-volume tables requiring careful paging strategy (1M+ rows)
+- **Large**: Significant data volumes, paging recommended (100K rows)
+- **Medium**: Moderate data volumes, may vary by customer (10K rows)
 - **Small**: Low-volume dimension tables and lookups (<1K rows)
 
 ---
@@ -111,12 +108,12 @@ CREATE TABLE [dbo].[Staging_FactAssignmentDetailsSnapshot]
     [AssignmentId] uniqueidentifier NULL,
     [UserId] uniqueidentifier NULL,
     [TeamId] uniqueidentifier NULL,
-    [Status] nvarchar(MAX) NULL,
-    [AssignedTo] nvarchar(MAX) NULL,
-    [FromDate] datetime2(7) NULL,
-    [ToDate] datetime2(7) NULL,
-    [RequiredDate] datetime2(7) NULL,
-    [SnapshotTimestamp] nvarchar(MAX) NULL,
+    [Status] int NULL,
+    [AssignedTo] uniqueidentifier NULL,
+    [FromDate] datetimeoffset(7) NULL,
+    [ToDate] datetimeoffset(7) NULL,
+    [RequiredDate] datetimeoffset(7) NULL,
+    [SnapshotTimestamp] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [LastLoaded] datetime2(7) NULL
 );
@@ -130,14 +127,14 @@ CREATE TABLE [dbo].[Staging_FactAssignmentDetailsSnapshot]
 | AssignmentId | uniqueidentifier | Links to the parent assignment record being tracked |
 | UserId | uniqueidentifier | User assigned to this assignment at the time of snapshot |
 | TeamId | uniqueidentifier | Team responsible for this assignment at the time of snapshot |
-| Status | nvarchar | Assignment status at snapshot time (e.g., Open, In Progress, Completed, Closed) |
-| AssignedTo | nvarchar | Display name or identifier of the assigned entity (user or team) |
-| FromDate | datetime2 | Start date/time when this assignment configuration became active |
-| ToDate | datetime2 | End date/time when this assignment configuration ended (NULL if current) |
-| RequiredDate | datetime2 | Due date or required completion date for the assignment |
-| SnapshotTimestamp | nvarchar | Date/time when this snapshot record was captured |
+| Status | int | Assignment status at snapshot time (e.g., Open, In Progress, Completed, Closed) |
+| AssignedTo | uniqueidentifier | Display name or identifier of the assigned entity (user or team) |
+| FromDate | datetimeoffset(7) | Start date/time when this assignment configuration became active |
+| ToDate | datetimeoffset(7) | End date/time when this assignment configuration ended (NULL if current) |
+| RequiredDate | datetimeoffset(7) | Due date or required completion date for the assignment |
+| SnapshotTimestamp | datetimeoffset(7) | Date/time when this snapshot record was captured |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
-| LastLoaded | datetime2 | Timestamp of last modification, used for incremental loading |
+| LastLoaded | datetime2(7) | Timestamp of last modification, used for incremental loading |
 
 ---
 
@@ -182,14 +179,14 @@ CREATE TABLE [dbo].[Staging_FactAssignmentProgressSnapshot]
 (
     [TenantId] uniqueidentifier NULL,
     [AssignmentId] uniqueidentifier NULL,
-    [TotalPercent] nvarchar(MAX) NULL,
-    [PlanPercent] nvarchar(MAX) NULL,
-    [WorkPercent] nvarchar(MAX) NULL,
-    [CompletePercent] nvarchar(MAX) NULL,
-    [Total] nvarchar(MAX) NULL,
-    [Complete] nvarchar(MAX) NULL,
-    [LastSyncTimestamp] nvarchar(MAX) NULL,
-    [SnapshotTimestamp] nvarchar(MAX) NULL,
+    [TotalPercent] numeric(30,5) NULL,
+    [PlanPercent] numeric(30,5) NULL,
+    [WorkPercent] numeric(30,5) NULL,
+    [CompletePercent] numeric(30,5) NULL,
+    [Total] int NULL,
+    [Complete] int NULL,
+    [LastSyncTimestamp] datetime NULL,
+    [SnapshotTimestamp] datetime NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [LastLoaded] datetime2(7) NULL
 );
@@ -201,16 +198,16 @@ CREATE TABLE [dbo].[Staging_FactAssignmentProgressSnapshot]
 |-------------|-----------|-------------|
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | AssignmentId | uniqueidentifier | Links to the assignment being measured |
-| TotalPercent | nvarchar | Overall completion percentage (0-100) across all dimensions |
-| PlanPercent | nvarchar | Percentage of planning phase completed |
-| WorkPercent | nvarchar | Percentage of work/execution phase completed |
-| CompletePercent | nvarchar | Percentage of completion/closeout phase completed |
-| Total | nvarchar | Total count or measure of assignment items |
-| Complete | nvarchar | Count or measure of completed assignment items |
-| LastSyncTimestamp | nvarchar | Timestamp when data was last synchronized from source system |
-| SnapshotTimestamp | nvarchar | Date/time when this progress snapshot was captured |
+| TotalPercent | numeric(30,5) | Overall completion percentage (0-100) across all dimensions |
+| PlanPercent | numeric(30,5) | Percentage of planning phase completed |
+| WorkPercent | numeric(30,5) | Percentage of work/execution phase completed |
+| CompletePercent | numeric(30,5) | Percentage of completion/closeout phase completed |
+| Total | int | Total count or measure of assignment items |
+| Complete | int | Count or measure of completed assignment items |
+| LastSyncTimestamp | datetime | Timestamp when data was last synchronized from source system |
+| SnapshotTimestamp | datetime | Date/time when this progress snapshot was captured |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
-| LastLoaded | datetime2 | Timestamp of last modification, used for incremental loading |
+| LastLoaded | datetime2(7) | Timestamp of last modification, used for incremental loading |
 
 ---
 
@@ -253,9 +250,9 @@ CREATE TABLE [dbo].[Staging_FactAuditCommandCountSnapshotHourly]
 (
     [TenantId] uniqueidentifier NULL,
     [UserId] uniqueidentifier NULL,
-    [CommandName] nvarchar(MAX) NULL,
-    [Count] nvarchar(MAX) NULL,
-    [SnapshotTimestamp] nvarchar(MAX) NULL,
+    [CommandName] nvarchar(200) NULL,
+    [Count] int NULL,
+    [SnapshotTimestamp] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [LastLoaded] datetime2(7) NULL
 );
@@ -267,11 +264,11 @@ CREATE TABLE [dbo].[Staging_FactAuditCommandCountSnapshotHourly]
 |-------------|-----------|-------------|
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | UserId | uniqueidentifier | User who executed the commands |
-| CommandName | nvarchar | Name or identifier of the command/action executed |
-| Count | nvarchar | Number of times the command was executed in the snapshot period |
-| SnapshotTimestamp | nvarchar | Hourly timestamp marking when this aggregation was captured |
+| CommandName | nvarchar(200) | Name or identifier of the command/action executed |
+| Count | int | Number of times the command was executed in the snapshot period |
+| SnapshotTimestamp | datetimeoffset(7) | Hourly timestamp marking when this aggregation was captured |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
-| LastLoaded | datetime2 | Timestamp of last modification, used for incremental loading |
+| LastLoaded | datetime2(7) | Timestamp of last modification, used for incremental loading |
 
 ---
 
@@ -315,9 +312,9 @@ CREATE TABLE [dbo].[Staging_FactAuditsUserAssignment]
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
     [UserId] uniqueidentifier NULL,
-    [CommandName] nvarchar(MAX) NULL,
+    [CommandName] nvarchar(200) NULL,
     [AssignmentId] uniqueidentifier NULL,
-    [FiredTimestamp] nvarchar(MAX) NULL,
+    [FiredTimestamp] datetime NULL,
     [LastUpdated] datetime2(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
 );
@@ -330,10 +327,10 @@ CREATE TABLE [dbo].[Staging_FactAuditsUserAssignment]
 | Id | uniqueidentifier | Unique identifier for this audit record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | UserId | uniqueidentifier | User who performed the audited action |
-| CommandName | nvarchar | Name of the command or action that was audited |
+| CommandName | nvarchar(200) | Name of the command or action that was audited |
 | AssignmentId | uniqueidentifier | Assignment that was affected by the action |
-| FiredTimestamp | nvarchar | Exact date/time when the audited event occurred |
-| LastUpdated | datetime2 | Timestamp of last modification to this audit record |
+| FiredTimestamp | datetime | Exact date/time when the audited event occurred |
+| LastUpdated | datetime2(7) | Timestamp of last modification to this audit record |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 
 ---
@@ -376,18 +373,18 @@ CREATE TABLE [dbo].[Staging_FactTimeSeries]
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
     [AssignmentId] uniqueidentifier NULL,
-    [LastOperatedAt] datetime2(7) NULL,
+    [LastOperatedAt] datetime NULL,
     [TimeSeriesTypeInstanceId] uniqueidentifier NULL,
     [SeriesInstanceName] nvarchar(MAX) NULL,
     [SeriesName] nvarchar(MAX) NULL,
-    [SeriesIdentifier] nvarchar(MAX) NULL,
+    [SeriesIdentifier] nvarchar(500) NULL,
     [SequenceNumber] int NULL,
-    [GroupFragmentReference] nvarchar(MAX) NULL,
-    [CompletedAt] datetime2(7) NULL,
-    [CompletedBy] nvarchar(MAX) NULL,
+    [GroupFragmentReference] uniqueidentifier NULL,
+    [CompletedAt] datetime NULL,
+    [CompletedBy] uniqueidentifier NULL,
     [ParentId] uniqueidentifier NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -400,18 +397,18 @@ CREATE TABLE [dbo].[Staging_FactTimeSeries]
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | AssignmentId | uniqueidentifier | Links to the Assignment record |
-| LastOperatedAt | datetime2 | Date/time timestamp |
+| LastOperatedAt | datetime | Date/time timestamp |
 | TimeSeriesTypeInstanceId | uniqueidentifier | Links to the TimeSeriesTypeInstance record |
-| SeriesInstanceName | nvarchar | Data field |
-| SeriesName | nvarchar | Data field |
-| SeriesIdentifier | nvarchar | Data field |
+| SeriesInstanceName | nvarchar(MAX) | Data field |
+| SeriesName | nvarchar(MAX) | Data field |
+| SeriesIdentifier | nvarchar(500) | Data field |
 | SequenceNumber | int | Data field |
-| GroupFragmentReference | nvarchar | Data field |
-| CompletedAt | datetime2 | Date/time timestamp |
-| CompletedBy | nvarchar | Data field |
+| GroupFragmentReference | uniqueidentifier | Data field |
+| CompletedAt | datetime | Date/time timestamp |
+| CompletedBy | uniqueidentifier | Data field |
 | ParentId | uniqueidentifier | Links to the Parent record |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -457,27 +454,25 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurements]
     [ATSFMId] uniqueidentifier NULL,
     [TimeSeriesId] uniqueidentifier NULL,
     [Comments] nvarchar(MAX) NULL,
-    [CapturedOn] datetime2(7) NULL,
-    [CompletedAt] datetime2(7) NULL,
-    [CapturedBy] nvarchar(MAX) NULL,
-    [CompletedBy] nvarchar(MAX) NULL,
-    [FieldMeasurementName] nvarchar(MAX) NULL,
-    [New_Name] nvarchar(MAX) NULL,
-    [FieldMeasurementName] nvarchar(MAX) NULL,
-    [FieldMeasurementIdentifier] nvarchar(MAX) NULL,
-    [SectionName] nvarchar(MAX) NULL,
-    [SectionIdentifier] nvarchar(MAX) NULL,
-    [DataType] nvarchar(MAX) NULL,
+    [CapturedOn] datetime NULL,
+    [CompletedAt] datetime NULL,
+    [CapturedBy] uniqueidentifier NULL,
+    [CompletedBy] uniqueidentifier NULL,
+    [FieldMeasurementName] nvarchar(250) NULL,
+    [FieldMeasurementIdentifier] nvarchar(250) NULL,
+    [SectionName] nvarchar(250) NULL,
+    [SectionIdentifier] nvarchar(250) NULL,
+    [DataType] int NULL,
     [AssignmentId] uniqueidentifier NULL,
-    [LowerBoundary] nvarchar(MAX) NULL,
-    [UpperBoundary] nvarchar(MAX) NULL,
+    [LowerBoundary] real NULL,
+    [UpperBoundary] real NULL,
     [Preface] nvarchar(MAX) NULL,
     [Postface] nvarchar(MAX) NULL,
-    [Unit] nvarchar(MAX) NULL,
-    [Reading] decimal(18,2) NULL,
+    [Unit] nvarchar(100) NULL,
+    [Reading] nvarchar(MAX) NULL,
     [SelectedMultiSelectValue] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -491,28 +486,26 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurements]
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | ATSFMId | uniqueidentifier | Links to the ATSFM record |
 | TimeSeriesId | uniqueidentifier | Links to the TimeSeries record |
-| Comments | nvarchar | Additional notes or comments |
-| CapturedOn | datetime2 | Date/time timestamp |
-| CompletedAt | datetime2 | Date/time timestamp |
-| CapturedBy | nvarchar | Data field |
-| CompletedBy | nvarchar | Data field |
-| FieldMeasurementName | nvarchar | Data field |
-| New_Name | nvarchar | Data field |
-| FieldMeasurementName | nvarchar | Data field |
-| FieldMeasurementIdentifier | nvarchar | Data field |
-| SectionName | nvarchar | Data field |
-| SectionIdentifier | nvarchar | Data field |
-| DataType | nvarchar | Data field |
+| Comments | nvarchar(MAX) | Additional notes or comments |
+| CapturedOn | datetime | Date/time timestamp |
+| CompletedAt | datetime | Date/time timestamp |
+| CapturedBy | uniqueidentifier | Data field |
+| CompletedBy | uniqueidentifier | Data field |
+| FieldMeasurementName | nvarchar(250) | Data field |
+| FieldMeasurementIdentifier | nvarchar(250) | Data field |
+| SectionName | nvarchar(250) | Data field |
+| SectionIdentifier | nvarchar(250) | Data field |
+| DataType | int | Data field |
 | AssignmentId | uniqueidentifier | Links to the Assignment record |
-| LowerBoundary | nvarchar | Data field |
-| UpperBoundary | nvarchar | Data field |
-| Preface | nvarchar | Data field |
-| Postface | nvarchar | Data field |
-| Unit | nvarchar | Data field |
-| Reading | decimal | Data field |
-| SelectedMultiSelectValue | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| LowerBoundary | real | Data field |
+| UpperBoundary | real | Data field |
+| Preface | nvarchar(MAX) | Data field |
+| Postface | nvarchar(MAX) | Data field |
+| Unit | nvarchar(100) | Data field |
+| Reading | nvarchar(MAX) | Data field |
+| SelectedMultiSelectValue | nvarchar(MAX) | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -555,28 +548,28 @@ CREATE TABLE [dbo].[Staging_DimAssignments]
 (
     [TenantId] uniqueidentifier NULL,
     [Id] uniqueidentifier NULL,
-    [AssignmentCode] nvarchar(MAX) NULL,
+    [AssignmentCode] nvarchar(50) NULL,
     [AssignmentPointId] uniqueidentifier NULL,
-    [AssignedTo] nvarchar(MAX) NULL,
+    [AssignedTo] uniqueidentifier NULL,
     [FromDate] datetime2(7) NULL,
     [ToDate] datetime2(7) NULL,
-    [Status] nvarchar(MAX) NULL,
-    [CreatedBy] nvarchar(MAX) NULL,
+    [Status] int NULL,
+    [CreatedBy] uniqueidentifier NULL,
     [WorkTemplateId] uniqueidentifier NULL,
     [TeamId] uniqueidentifier NULL,
-    [CompletedBy] nvarchar(MAX) NULL,
-    [FinalisedBy] nvarchar(MAX) NULL,
+    [CompletedBy] uniqueidentifier NULL,
+    [FinalisedBy] uniqueidentifier NULL,
     [CompletedOn] datetime2(7) NULL,
     [FinalisedOn] datetime2(7) NULL,
     [CancelledOn] datetime2(7) NULL,
     [DeclinedOn] datetime2(7) NULL,
     [RequiredDate] datetime2(7) NULL,
     [AssignmentCategoryId] uniqueidentifier NULL,
-    [AssignmentTitle] nvarchar(MAX) NULL,
-    [Revision] int NULL,
-    [Effort] decimal(18,2) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [AssignmentTitle] nvarchar(200) NULL,
+    [Revision] nvarchar(25) NULL,
+    [Effort] bigint NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -588,28 +581,28 @@ CREATE TABLE [dbo].[Staging_DimAssignments]
 |-------------|-----------|-------------|
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | Id | uniqueidentifier | Unique identifier for this record |
-| AssignmentCode | nvarchar | Data field |
+| AssignmentCode | nvarchar(50) | Data field |
 | AssignmentPointId | uniqueidentifier | Links to the AssignmentPoint record |
-| AssignedTo | nvarchar | Data field |
-| FromDate | datetime2 | Date/time timestamp |
-| ToDate | datetime2 | Date/time timestamp |
-| Status | nvarchar | Current status of the record |
-| CreatedBy | nvarchar | User who created this record |
+| AssignedTo | uniqueidentifier | Data field |
+| FromDate | datetime2(7) | Date/time timestamp |
+| ToDate | datetime2(7) | Date/time timestamp |
+| Status | int | Current status of the record |
+| CreatedBy | uniqueidentifier | User who created this record |
 | WorkTemplateId | uniqueidentifier | Links to the WorkTemplate record |
 | TeamId | uniqueidentifier | Links to the Team record |
-| CompletedBy | nvarchar | Data field |
-| FinalisedBy | nvarchar | Data field |
-| CompletedOn | datetime2 | Date/time timestamp |
-| FinalisedOn | datetime2 | Date/time timestamp |
-| CancelledOn | datetime2 | Date/time timestamp |
-| DeclinedOn | datetime2 | Date/time timestamp |
-| RequiredDate | datetime2 | Date/time timestamp |
+| CompletedBy | uniqueidentifier | Data field |
+| FinalisedBy | uniqueidentifier | Data field |
+| CompletedOn | datetime2(7) | Date/time timestamp |
+| FinalisedOn | datetime2(7) | Date/time timestamp |
+| CancelledOn | datetime2(7) | Date/time timestamp |
+| DeclinedOn | datetime2(7) | Date/time timestamp |
+| RequiredDate | datetime2(7) | Date/time timestamp |
 | AssignmentCategoryId | uniqueidentifier | Links to the AssignmentCategory record |
-| AssignmentTitle | nvarchar | Data field |
-| Revision | int | Data field |
-| Effort | decimal | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| AssignmentTitle | nvarchar(200) | Data field |
+| Revision | nvarchar(25) | Data field |
+| Effort | bigint | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -653,13 +646,13 @@ CREATE TABLE [dbo].[Staging_FactAssignmentDeclinedReasons]
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
     [AssignmentId] uniqueidentifier NULL,
-    [DeclinedBy] nvarchar(MAX) NULL,
-    [DeclinedOn] datetime2(7) NULL,
-    [DeclinedByFullName] nvarchar(MAX) NULL,
-    [ReasonForDecliningComment] nvarchar(MAX) NULL,
+    [DeclinedBy] uniqueidentifier NULL,
+    [DeclinedOn] datetime NULL,
+    [DeclinedByFullName] nvarchar(250) NULL,
+    [ReasonForDecliningComment] nvarchar(500) NULL,
     [ReasonForDeclining] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
 );
 ```
@@ -671,13 +664,13 @@ CREATE TABLE [dbo].[Staging_FactAssignmentDeclinedReasons]
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | AssignmentId | uniqueidentifier | Links to the Assignment record |
-| DeclinedBy | nvarchar | Data field |
-| DeclinedOn | datetime2 | Date/time timestamp |
-| DeclinedByFullName | nvarchar | Data field |
-| ReasonForDecliningComment | nvarchar | Data field |
-| ReasonForDeclining | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| DeclinedBy | uniqueidentifier | Data field |
+| DeclinedOn | datetime | Date/time timestamp |
+| DeclinedByFullName | nvarchar(250) | Data field |
+| ReasonForDecliningComment | nvarchar(500) | Data field |
+| ReasonForDeclining | nvarchar(MAX) | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 
 ---
@@ -721,16 +714,16 @@ CREATE TABLE [dbo].[Staging_FactAssignmentExceptions]
     [TenantId] uniqueidentifier NULL,
     [AssignmentId] uniqueidentifier NULL,
     [FieldMeasureId] uniqueidentifier NULL,
-    [Priority] nvarchar(MAX) NULL,
-    [RaisedAt] datetime2(7) NULL,
-    [RaisedBy] nvarchar(MAX) NULL,
-    [RaisedByName] nvarchar(MAX) NULL,
-    [ResolvedAt] datetime2(7) NULL,
-    [ResolvedBy] nvarchar(MAX) NULL,
-    [ResolvedByName] nvarchar(MAX) NULL,
+    [Priority] int NULL,
+    [RaisedAt] datetime NULL,
+    [RaisedBy] uniqueidentifier NULL,
+    [RaisedByName] nvarchar(250) NULL,
+    [ResolvedAt] datetime NULL,
+    [ResolvedBy] uniqueidentifier NULL,
+    [ResolvedByName] nvarchar(250) NULL,
     [Comment] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [IsDeleted] bit NULL
 );
 ```
@@ -743,16 +736,16 @@ CREATE TABLE [dbo].[Staging_FactAssignmentExceptions]
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | AssignmentId | uniqueidentifier | Links to the Assignment record |
 | FieldMeasureId | uniqueidentifier | Links to the FieldMeasure record |
-| Priority | nvarchar | Data field |
-| RaisedAt | datetime2 | Date/time timestamp |
-| RaisedBy | nvarchar | Data field |
-| RaisedByName | nvarchar | Data field |
-| ResolvedAt | datetime2 | Date/time timestamp |
-| ResolvedBy | nvarchar | Data field |
-| ResolvedByName | nvarchar | Data field |
-| Comment | nvarchar | Additional notes or comments |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| Priority | int | Data field |
+| RaisedAt | datetime | Date/time timestamp |
+| RaisedBy | uniqueidentifier | Data field |
+| RaisedByName | nvarchar(250) | Data field |
+| ResolvedAt | datetime | Date/time timestamp |
+| ResolvedBy | uniqueidentifier | Data field |
+| ResolvedByName | nvarchar(250) | Data field |
+| Comment | nvarchar(MAX) | Additional notes or comments |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
 ---
@@ -796,8 +789,8 @@ CREATE TABLE [dbo].[Staging_FactAssignmentFieldOperators]
     [TenantId] uniqueidentifier NULL,
     [AssignmentId] uniqueidentifier NULL,
     [FieldOperatorId] uniqueidentifier NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -811,8 +804,8 @@ CREATE TABLE [dbo].[Staging_FactAssignmentFieldOperators]
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | AssignmentId | uniqueidentifier | Links to the Assignment record |
 | FieldOperatorId | uniqueidentifier | Links to the FieldOperator record |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -856,13 +849,12 @@ CREATE TABLE [dbo].[Staging_FactAssignmentTags]
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
     [AssignmentId] uniqueidentifier NULL,
-    [AssignmentId] uniqueidentifier NULL,
-    [Key] nvarchar(MAX) NULL,
-    [Value] nvarchar(MAX) NULL,
+    [Key] nvarchar(250) NULL,
+    [Value] nvarchar(500) NULL,
     [IsVisible] bit NULL,
     [IsInteractive] bit NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -875,13 +867,12 @@ CREATE TABLE [dbo].[Staging_FactAssignmentTags]
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | AssignmentId | uniqueidentifier | Links to the Assignment record |
-| AssignmentId | uniqueidentifier | Links to the Assignment record |
-| Key | nvarchar | Data field |
-| Value | nvarchar | Data field |
+| Key | nvarchar(250) | Data field |
+| Value | nvarchar(500) | Data field |
 | IsVisible | bit | Indicates if visible condition is true |
 | IsInteractive | bit | Indicates if interactive condition is true |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -926,15 +917,15 @@ CREATE TABLE [dbo].[Staging_DimAssignmentPoints]
 (
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
-    [PointId] uniqueidentifier NULL,
-    [PointName] nvarchar(MAX) NULL,
+    [PointId] nvarchar(50) NULL,
+    [PointName] nvarchar(100) NULL,
     [ParentId] uniqueidentifier NULL,
     [SubsiteId] uniqueidentifier NULL,
-    [AssignmentPointTypeName] nvarchar(MAX) NULL,
-    [APLatitude] nvarchar(MAX) NULL,
-    [APLongitude] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [AssignmentPointTypeName] nvarchar(500) NULL,
+    [APLatitude] numeric(10,7) NULL,
+    [APLongitude] numeric(10,7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -946,15 +937,15 @@ CREATE TABLE [dbo].[Staging_DimAssignmentPoints]
 |-------------|-----------|-------------|
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| PointId | uniqueidentifier | Links to the Point record |
-| PointName | nvarchar | Data field |
+| PointId | nvarchar(50) | Links to the Point record |
+| PointName | nvarchar(100) | Data field |
 | ParentId | uniqueidentifier | Links to the Parent record |
 | SubsiteId | uniqueidentifier | Links to the Subsite record |
-| AssignmentPointTypeName | nvarchar | Data field |
-| APLatitude | nvarchar | Data field |
-| APLongitude | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| AssignmentPointTypeName | nvarchar(500) | Data field |
+| APLatitude | numeric(10,7) | Data field |
+| APLongitude | numeric(10,7) | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -999,12 +990,12 @@ CREATE TABLE [dbo].[Staging_FactAssignmentPointAttributes]
 (
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
-    [AttributeName] nvarchar(MAX) NULL,
+    [AttributeName] nvarchar(250) NULL,
     [AttributeValue] nvarchar(MAX) NULL,
-    [AttributeGroupName] nvarchar(MAX) NULL,
+    [AttributeGroupName] nvarchar(250) NULL,
     [AssignmentPointId] uniqueidentifier NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
 );
 ```
@@ -1015,12 +1006,12 @@ CREATE TABLE [dbo].[Staging_FactAssignmentPointAttributes]
 |-------------|-----------|-------------|
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| AttributeName | nvarchar | Data field |
-| AttributeValue | nvarchar | Data field |
-| AttributeGroupName | nvarchar | Data field |
+| AttributeName | nvarchar(250) | Data field |
+| AttributeValue | nvarchar(MAX) | Data field |
+| AttributeGroupName | nvarchar(250) | Data field |
 | AssignmentPointId | uniqueidentifier | Links to the AssignmentPoint record |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 
 ---
@@ -1062,13 +1053,13 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurementDocuments]
 (
     [DocumentId] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
-    [TimeSeriesFieldMeasurementID] nvarchar(MAX) NULL,
+    [TimeSeriesFieldMeasurementID] uniqueidentifier NULL,
     [AssignmentTimeSeriesFieldMeasurementId] uniqueidentifier NULL,
     [ParentId] uniqueidentifier NULL,
-    [FileName] nvarchar(MAX) NULL,
-    [DocumentURL] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [FileName] nvarchar(500) NULL,
+    [DocumentURL] nvarchar(500) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [IsDeleted] bit NULL
 );
 ```
@@ -1079,13 +1070,13 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesFieldMeasurementDocuments]
 |-------------|-----------|-------------|
 | DocumentId | uniqueidentifier | Links to the Document record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| TimeSeriesFieldMeasurementID | nvarchar | Data field |
+| TimeSeriesFieldMeasurementID | uniqueidentifier | Data field |
 | AssignmentTimeSeriesFieldMeasurementId | uniqueidentifier | Links to the AssignmentTimeSeriesFieldMeasurement record |
 | ParentId | uniqueidentifier | Links to the Parent record |
-| FileName | nvarchar | Data field |
-| DocumentURL | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| FileName | nvarchar(500) | Data field |
+| DocumentURL | nvarchar(500) | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
 ---
@@ -1126,12 +1117,12 @@ CREATE TABLE [dbo].[Staging_DimAssignmentCategories]
 (
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
-    [Category] nvarchar(MAX) NULL,
-    [Code] nvarchar(MAX) NULL,
-    [Color] nvarchar(MAX) NULL,
-    [Critical] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [Category] nvarchar(250) NULL,
+    [Code] nvarchar(2) NULL,
+    [Color] nvarchar(7) NULL,
+    [Critical] bit NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [IsDeleted] bit NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
 );
@@ -1143,12 +1134,12 @@ CREATE TABLE [dbo].[Staging_DimAssignmentCategories]
 |-------------|-----------|-------------|
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| Category | nvarchar | Data field |
-| Code | nvarchar | Unique code or identifier |
-| Color | nvarchar | Data field |
-| Critical | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| Category | nvarchar(250) | Data field |
+| Code | nvarchar(2) | Unique code or identifier |
+| Color | nvarchar(7) | Data field |
+| Critical | bit | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 
@@ -1190,8 +1181,8 @@ Use this script to create a staging table that matches the stored procedure outp
 ```sql
 CREATE TABLE [dbo].[Staging_DimAssignmentStatus]
 (
-    [Id] uniqueidentifier NULL,
-    [Name] nvarchar(MAX) NULL
+    [Id] int NULL,
+    [Name] nvarchar(50) NULL
 );
 ```
 
@@ -1199,8 +1190,8 @@ CREATE TABLE [dbo].[Staging_DimAssignmentStatus]
 
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
-| Id | uniqueidentifier | Unique identifier for this record |
-| Name | nvarchar | Display name |
+| Id | int | Unique identifier for this record |
+| Name | nvarchar(50) | Display name |
 
 ---
 
@@ -1240,10 +1231,11 @@ CREATE TABLE [dbo].[Staging_DimFieldMeasurementTables]
 (
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
-    [Column1Name] nvarchar(MAX) NULL,
-    [Column2Name] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [TableName] nvarchar(100) NULL,
+    [Column1Name] nvarchar(100) NULL,
+    [Column2Name] nvarchar(100) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -1255,10 +1247,11 @@ CREATE TABLE [dbo].[Staging_DimFieldMeasurementTables]
 |-------------|-----------|-------------|
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| Column1Name | nvarchar | Data field |
-| Column2Name | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| TableName | nvarchar(100) | Data field |
+| Column1Name | nvarchar(100) | Data field |
+| Column2Name | nvarchar(100) | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -1300,19 +1293,19 @@ CREATE TABLE [dbo].[Staging_DimSites]
 (
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
-    [SiteId] uniqueidentifier NULL,
-    [SiteName] nvarchar(MAX) NULL,
-    [SiteAddressLine1] nvarchar(MAX) NULL,
-    [SiteAddressLine2] nvarchar(MAX) NULL,
-    [SiteAddressLine3] nvarchar(MAX) NULL,
-    [SiteAddressCity] nvarchar(MAX) NULL,
-    [SiteAddressPostCode] nvarchar(MAX) NULL,
+    [SiteId] nvarchar(50) NULL,
+    [SiteName] nvarchar(100) NULL,
+    [SiteAddressLine1] nvarchar(500) NULL,
+    [SiteAddressLine2] nvarchar(500) NULL,
+    [SiteAddressLine3] nvarchar(500) NULL,
+    [SiteAddressCity] nvarchar(100) NULL,
+    [SiteAddressPostCode] nvarchar(10) NULL,
     [SiteLocationDescription] nvarchar(MAX) NULL,
     [SiteUsageDescription] nvarchar(MAX) NULL,
-    [APLatitude] nvarchar(MAX) NULL,
-    [APLongitude] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [APLatitude] numeric(10,7) NULL,
+    [APLongitude] numeric(10,7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -1324,19 +1317,19 @@ CREATE TABLE [dbo].[Staging_DimSites]
 |-------------|-----------|-------------|
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| SiteId | uniqueidentifier | Links to the Site record |
-| SiteName | nvarchar | Data field |
-| SiteAddressLine1 | nvarchar | Data field |
-| SiteAddressLine2 | nvarchar | Data field |
-| SiteAddressLine3 | nvarchar | Data field |
-| SiteAddressCity | nvarchar | Data field |
-| SiteAddressPostCode | nvarchar | Data field |
-| SiteLocationDescription | nvarchar | Data field |
-| SiteUsageDescription | nvarchar | Data field |
-| APLatitude | nvarchar | Data field |
-| APLongitude | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| SiteId | nvarchar(50) | Links to the Site record |
+| SiteName | nvarchar(100) | Data field |
+| SiteAddressLine1 | nvarchar(500) | Data field |
+| SiteAddressLine2 | nvarchar(500) | Data field |
+| SiteAddressLine3 | nvarchar(500) | Data field |
+| SiteAddressCity | nvarchar(100) | Data field |
+| SiteAddressPostCode | nvarchar(10) | Data field |
+| SiteLocationDescription | nvarchar(MAX) | Data field |
+| SiteUsageDescription | nvarchar(MAX) | Data field |
+| APLatitude | numeric(10,7) | Data field |
+| APLongitude | numeric(10,7) | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -1378,20 +1371,20 @@ CREATE TABLE [dbo].[Staging_DimSubSites]
 (
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
-    [SubSiteId] uniqueidentifier NULL,
-    [SubSiteName] nvarchar(MAX) NULL,
-    [SubSiteAddressLine1] nvarchar(MAX) NULL,
-    [SubSiteAddressLine2] nvarchar(MAX) NULL,
-    [SubSiteAddressLine3] nvarchar(MAX) NULL,
-    [SubSiteAddressCity] nvarchar(MAX) NULL,
-    [SubSiteAddressPostCode] nvarchar(MAX) NULL,
+    [SubSiteId] nvarchar(50) NULL,
+    [SubSiteName] nvarchar(100) NULL,
+    [SubSiteAddressLine1] nvarchar(500) NULL,
+    [SubSiteAddressLine2] nvarchar(500) NULL,
+    [SubSiteAddressLine3] nvarchar(500) NULL,
+    [SubSiteAddressCity] nvarchar(100) NULL,
+    [SubSiteAddressPostCode] nvarchar(10) NULL,
     [SubSiteLocationDescription] nvarchar(MAX) NULL,
     [SubSiteUsageDescription] nvarchar(MAX) NULL,
-    [APLatitude] nvarchar(MAX) NULL,
-    [APLongitude] nvarchar(MAX) NULL,
+    [APLatitude] numeric(10,7) NULL,
+    [APLongitude] numeric(10,7) NULL,
     [ParentSiteId] uniqueidentifier NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -1403,20 +1396,20 @@ CREATE TABLE [dbo].[Staging_DimSubSites]
 |-------------|-----------|-------------|
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| SubSiteId | uniqueidentifier | Links to the SubSite record |
-| SubSiteName | nvarchar | Data field |
-| SubSiteAddressLine1 | nvarchar | Data field |
-| SubSiteAddressLine2 | nvarchar | Data field |
-| SubSiteAddressLine3 | nvarchar | Data field |
-| SubSiteAddressCity | nvarchar | Data field |
-| SubSiteAddressPostCode | nvarchar | Data field |
-| SubSiteLocationDescription | nvarchar | Data field |
-| SubSiteUsageDescription | nvarchar | Data field |
-| APLatitude | nvarchar | Data field |
-| APLongitude | nvarchar | Data field |
+| SubSiteId | nvarchar(50) | Links to the SubSite record |
+| SubSiteName | nvarchar(100) | Data field |
+| SubSiteAddressLine1 | nvarchar(500) | Data field |
+| SubSiteAddressLine2 | nvarchar(500) | Data field |
+| SubSiteAddressLine3 | nvarchar(500) | Data field |
+| SubSiteAddressCity | nvarchar(100) | Data field |
+| SubSiteAddressPostCode | nvarchar(10) | Data field |
+| SubSiteLocationDescription | nvarchar(MAX) | Data field |
+| SubSiteUsageDescription | nvarchar(MAX) | Data field |
+| APLatitude | numeric(10,7) | Data field |
+| APLongitude | numeric(10,7) | Data field |
 | ParentSiteId | uniqueidentifier | Links to the ParentSite record |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -1458,19 +1451,12 @@ CREATE TABLE [dbo].[Staging_DimTeams]
 (
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
-    [Name] nvarchar(MAX) NULL,
+    [Name] nvarchar(200) NULL,
     [Description] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
-    [IsDeleted] bit NULL,
-    [Name] nvarchar(MAX) NULL,
-    [Name] nvarchar(MAX) NULL,
-    [ResourceCentre] nvarchar(MAX) NULL,
-    [Name] nvarchar(MAX) NULL,
-    [Name] nvarchar(MAX) NULL,
-    [Name] nvarchar(MAX) NULL,
-    [WorkCentre] nvarchar(MAX) NULL
+    [IsDeleted] bit NULL
 );
 ```
 
@@ -1480,19 +1466,12 @@ CREATE TABLE [dbo].[Staging_DimTeams]
 |-------------|-----------|-------------|
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| Name | nvarchar | Display name |
-| Description | nvarchar | Detailed description or notes |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| Name | nvarchar(200) | Display name |
+| Description | nvarchar(MAX) | Detailed description or notes |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
-| Name | nvarchar | Display name |
-| Name | nvarchar | Display name |
-| ResourceCentre | nvarchar | Data field |
-| Name | nvarchar | Display name |
-| Name | nvarchar | Display name |
-| Name | nvarchar | Display name |
-| WorkCentre | nvarchar | Data field |
 
 ---
 
@@ -1534,11 +1513,12 @@ CREATE TABLE [dbo].[Staging_DimTemplateGroups]
     [TenantId] uniqueidentifier NULL,
     [CreatedByUserId] uniqueidentifier NULL,
     [UpdatedByUserId] uniqueidentifier NULL,
-    [Name] nvarchar(MAX) NULL,
-    [Identifier] nvarchar(MAX) NULL,
-    [AccessControlled] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [Name] nvarchar(200) NULL,
+    [Identifier] nvarchar(50) NULL,
+    [AccessControlled] bit NULL,
+    [IsActive] bit NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [IsDeleted] bit NULL
 );
 ```
@@ -1551,11 +1531,12 @@ CREATE TABLE [dbo].[Staging_DimTemplateGroups]
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | CreatedByUserId | uniqueidentifier | Links to the CreatedByUser record |
 | UpdatedByUserId | uniqueidentifier | Links to the UpdatedByUser record |
-| Name | nvarchar | Display name |
-| Identifier | nvarchar | Unique code or identifier |
-| AccessControlled | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| Name | nvarchar(200) | Display name |
+| Identifier | nvarchar(50) | Unique code or identifier |
+| AccessControlled | bit | Data field |
+| IsActive | bit | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
 ---
@@ -1598,18 +1579,21 @@ CREATE TABLE [dbo].[Staging_DimUsers]
     [Id] uniqueidentifier NULL,
     [UserId] uniqueidentifier NULL,
     [Role] nvarchar(MAX) NULL,
-    [UserCode] nvarchar(MAX) NULL,
+    [UserCode] nvarchar(100) NULL,
     [Email] nvarchar(MAX) NULL,
-    [FullName] nvarchar(MAX) NULL,
+    [FullName] nvarchar(500) NULL,
+    [LastSyncTime] datetimeoffset(7) NULL,
     [IsActive] bit NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [ReferenceCode] nvarchar(MAX) NULL,
     [AuthorisationCode] nvarchar(MAX) NULL,
     [Department] nvarchar(MAX) NULL,
     [DepartmentCode] nvarchar(MAX) NULL,
     [Organisation] nvarchar(MAX) NULL,
-    [OrganisationCode] nvarchar(MAX) NULL
+    [OrganisationCode] nvarchar(MAX) NULL,
+    [ContractEffectiveDate] datetimeoffset(7) NULL,
+    [ContractEndDate] datetimeoffset(7) NULL
 );
 ```
 
@@ -1620,19 +1604,22 @@ CREATE TABLE [dbo].[Staging_DimUsers]
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | Id | uniqueidentifier | Unique identifier for this record |
 | UserId | uniqueidentifier | Links to the User record |
-| Role | nvarchar | Data field |
-| UserCode | nvarchar | Data field |
-| Email | nvarchar | Email address |
-| FullName | nvarchar | Complete display name |
+| Role | nvarchar(MAX) | Data field |
+| UserCode | nvarchar(100) | Data field |
+| Email | nvarchar(MAX) | Email address |
+| FullName | nvarchar(500) | Complete display name |
+| LastSyncTime | datetimeoffset(7) | Last sync timestamp |
 | IsActive | bit | Indicates if active condition is true |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
-| ReferenceCode | nvarchar | Data field |
-| AuthorisationCode | nvarchar | Data field |
-| Department | nvarchar | Data field |
-| DepartmentCode | nvarchar | Data field |
-| Organisation | nvarchar | Data field |
-| OrganisationCode | nvarchar | Data field |
+| ReferenceCode | nvarchar(MAX) | Data field |
+| AuthorisationCode | nvarchar(MAX) | Data field |
+| Department | nvarchar(MAX) | Data field |
+| DepartmentCode | nvarchar(MAX) | Data field |
+| Organisation | nvarchar(MAX) | Data field |
+| OrganisationCode | nvarchar(MAX) | Data field |
+| ContractEffectiveDate | datetimeoffset(7) | Contract effective date |
+| ContractEndDate | datetimeoffset(7) | Contract end date |
 
 ---
 
@@ -1672,18 +1659,16 @@ CREATE TABLE [dbo].[Staging_DimWorkTemplates]
 (
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
-    [Identifier] nvarchar(MAX) NULL,
-    [Name] nvarchar(MAX) NULL,
-    [Version] nvarchar(MAX) NULL,
-    [TemplateLink] nvarchar(MAX) NULL,
-    [FragmentType] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
-    [PagingId] binary(8) NULL,  -- Converted from rowversion
+    [Identifier] nvarchar(50) NULL,
+    [Name] nvarchar(250) NULL,
+    [Version] nvarchar(250) NULL,
+    [TemplateLink] uniqueidentifier NULL,
+    [FragmentType] nvarchar(100) NULL,
     [IsPublished] bit NULL,
-    [Json] nvarchar(MAX) NULL,
-    [bit] nvarchar(MAX) NULL,
-    [nvarchar] nvarchar(MAX) NULL
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
+    [PagingId] binary(8) NULL,  -- Converted from rowversion
+    [Json] nvarchar(MAX) NULL
 );
 ```
 
@@ -1693,18 +1678,16 @@ CREATE TABLE [dbo].[Staging_DimWorkTemplates]
 |-------------|-----------|-------------|
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| Identifier | nvarchar | Unique code or identifier |
-| Name | nvarchar | Display name |
-| Version | nvarchar | Data field |
-| TemplateLink | nvarchar | Data field |
-| FragmentType | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
-| PagingId | rowversion | Rowversion used for paging through large result sets |
+| Identifier | nvarchar(50) | Unique code or identifier |
+| Name | nvarchar(250) | Display name |
+| Version | nvarchar(250) | Data field |
+| TemplateLink | uniqueidentifier | Data field |
+| FragmentType | nvarchar(100) | Data field |
 | IsPublished | bit | Indicates if published condition is true |
-| Json | nvarchar | Data field |
-| bit | nvarchar | Data field |
-| nvarchar | nvarchar | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
+| PagingId | rowversion | Rowversion used for paging through large result sets |
+| Json | nvarchar(MAX) | Data field |
 
 ---
 
@@ -1745,11 +1728,11 @@ CREATE TABLE [dbo].[Staging_FactFieldMeasurementTables]
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
     [FieldMeasurementTableDefinitionId] uniqueidentifier NULL,
-    [Column1] nvarchar(MAX) NULL,
-    [Column2] nvarchar(MAX) NULL,
-    [Reference] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [Column1] nvarchar(500) NULL,
+    [Column2] nvarchar(500) NULL,
+    [Reference] nvarchar(500) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -1762,11 +1745,11 @@ CREATE TABLE [dbo].[Staging_FactFieldMeasurementTables]
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | FieldMeasurementTableDefinitionId | uniqueidentifier | Links to the FieldMeasurementTableDefinition record |
-| Column1 | nvarchar | Data field |
-| Column2 | nvarchar | Data field |
-| Reference | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| Column1 | nvarchar(500) | Data field |
+| Column2 | nvarchar(500) | Data field |
+| Reference | nvarchar(500) | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -1811,8 +1794,8 @@ CREATE TABLE [dbo].[Staging_FactTeamUsers]
     [TeamId] uniqueidentifier NULL,
     [IsSupervisor] bit NULL,
     [IsMember] bit NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
 );
 ```
@@ -1826,8 +1809,8 @@ CREATE TABLE [dbo].[Staging_FactTeamUsers]
 | TeamId | uniqueidentifier | Links to the Team record |
 | IsSupervisor | bit | Indicates if supervisor condition is true |
 | IsMember | bit | Indicates if member condition is true |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 
 ---
@@ -1869,10 +1852,10 @@ CREATE TABLE [dbo].[Staging_FactTemplateGroupWorkTemplates]
     [Id] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
     [TemplateGroupId] uniqueidentifier NULL,
-    [TemplateLink] nvarchar(MAX) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [TemplateLink] uniqueidentifier NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
-    [CreatedDate] datetime2(7) NULL,
     [IsDeleted] bit NULL
 );
 ```
@@ -1884,10 +1867,10 @@ CREATE TABLE [dbo].[Staging_FactTemplateGroupWorkTemplates]
 | Id | uniqueidentifier | Unique identifier for this record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | TemplateGroupId | uniqueidentifier | Links to the TemplateGroup record |
-| TemplateLink | nvarchar | Data field |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| TemplateLink | uniqueidentifier | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
-| CreatedDate | datetime2 | Date/time when this record was created |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
 ---
@@ -1929,14 +1912,13 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesSectionDocuments]
     [DocumentId] uniqueidentifier NULL,
     [TenantId] uniqueidentifier NULL,
     [ParentId] uniqueidentifier NULL,
-    [FileName] nvarchar(MAX) NULL,
-    [DocumentKind] nvarchar(MAX) NULL,
-    [TenantId] uniqueidentifier NULL,
+    [FileName] nvarchar(500) NULL,
+    [DocumentKind] int NULL,
     [AssignmentTimeSeriesFieldMeasurementSectionId] uniqueidentifier NULL,
     [TimeSeriesId] uniqueidentifier NULL,
-    [DocumentURL] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [DocumentURL] nvarchar(500) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [IsDeleted] bit NULL
 );
 ```
@@ -1948,14 +1930,13 @@ CREATE TABLE [dbo].[Staging_FactTimeSeriesSectionDocuments]
 | DocumentId | uniqueidentifier | Links to the Document record |
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | ParentId | uniqueidentifier | Links to the Parent record |
-| FileName | nvarchar | Data field |
-| DocumentKind | nvarchar | Data field |
-| TenantId | uniqueidentifier | Unique identifier for the tenant organization |
+| FileName | nvarchar(500) | Data field |
+| DocumentKind | int | Data field |
 | AssignmentTimeSeriesFieldMeasurementSectionId | uniqueidentifier | Links to the AssignmentTimeSeriesFieldMeasurementSection record |
 | TimeSeriesId | uniqueidentifier | Links to the TimeSeries record |
-| DocumentURL | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| DocumentURL | nvarchar(500) | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
 ---
@@ -1998,11 +1979,11 @@ CREATE TABLE [dbo].[Staging_LabelAlias]
 (
     [TenantId] uniqueidentifier NULL,
     [Id] uniqueidentifier NULL,
-    [LabelKey] nvarchar(MAX) NULL,
-    [LabelValue] nvarchar(MAX) NULL,
-    [LabelPluralValue] nvarchar(MAX) NULL,
-    [CreatedDate] datetime2(7) NULL,
-    [LastUpdated] datetime2(7) NULL,
+    [LabelKey] nvarchar(200) NULL,
+    [LabelValue] nvarchar(200) NULL,
+    [LabelPluralValue] nvarchar(200) NULL,
+    [CreatedDate] datetimeoffset(7) NULL,
+    [LastUpdated] datetimeoffset(7) NULL,
     [PagingId] binary(8) NULL,  -- Converted from rowversion
     [IsDeleted] bit NULL
 );
@@ -2014,11 +1995,11 @@ CREATE TABLE [dbo].[Staging_LabelAlias]
 |-------------|-----------|-------------|
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
 | Id | uniqueidentifier | Unique identifier for this record |
-| LabelKey | nvarchar | Data field |
-| LabelValue | nvarchar | Data field |
-| LabelPluralValue | nvarchar | Data field |
-| CreatedDate | datetime2 | Date/time when this record was created |
-| LastUpdated | datetime2 | Timestamp of last modification, used for incremental loading |
+| LabelKey | nvarchar(200) | Data field |
+| LabelValue | nvarchar(200) | Data field |
+| LabelPluralValue | nvarchar(200) | Data field |
+| CreatedDate | datetimeoffset(7) | Date/time when this record was created |
+| LastUpdated | datetimeoffset(7) | Timestamp of last modification, used for incremental loading |
 | PagingId | rowversion | Rowversion used for paging through large result sets |
 | IsDeleted | bit | Soft delete flag indicating if record is logically deleted |
 
@@ -2059,19 +2040,20 @@ Use this script to create a staging table that matches the stored procedure outp
 CREATE TABLE [dbo].[Staging_TenantSettings]
 (
     [TenantId] uniqueidentifier NULL,
-    [Timezone] nvarchar(MAX) NULL,
+    [TenantCode] nvarchar(50) NULL,
+    [Timezone] nvarchar(200) NULL,
     [LogoBase64] nvarchar(MAX) NULL,
-    [TenantName] nvarchar(MAX) NULL,
-    [TenantURL] nvarchar(MAX) NULL,
-    [PrimaryColour] nvarchar(MAX) NULL,
-    [SecondaryColour] nvarchar(MAX) NULL,
-    [AssignmentPointList1] nvarchar(MAX) NULL,
-    [AssignmentPointList2] nvarchar(MAX) NULL,
-    [TempleteList1] nvarchar(MAX) NULL,
-    [TempleteList2] nvarchar(MAX) NULL,
-    [SeriesList1] nvarchar(MAX) NULL,
-    [SeriesList2] nvarchar(MAX) NULL,
-    [OrganisationKey] nvarchar(MAX) NULL
+    [TenantName] nvarchar(100) NULL,
+    [TenantURL] nvarchar(100) NULL,
+    [PrimaryColour] nvarchar(50) NULL,
+    [SecondaryColour] nvarchar(50) NULL,
+    [AssignmentPointList1] nvarchar(4000) NULL,
+    [AssignmentPointList2] nvarchar(4000) NULL,
+    [TempleteList1] nvarchar(4000) NULL,
+    [TempleteList2] nvarchar(4000) NULL,
+    [SeriesList1] nvarchar(4000) NULL,
+    [SeriesList2] nvarchar(4000) NULL,
+    [OrganisationKey] nvarchar(300) NULL
 );
 ```
 
@@ -2080,19 +2062,20 @@ CREATE TABLE [dbo].[Staging_TenantSettings]
 | Column Name | Data Type | Description |
 |-------------|-----------|-------------|
 | TenantId | uniqueidentifier | Unique identifier for the tenant organization |
-| Timezone | nvarchar | Data field |
-| LogoBase64 | nvarchar | Data field |
-| TenantName | nvarchar | Data field |
-| TenantURL | nvarchar | Data field |
-| PrimaryColour | nvarchar | Data field |
-| SecondaryColour | nvarchar | Data field |
-| AssignmentPointList1 | nvarchar | Data field |
-| AssignmentPointList2 | nvarchar | Data field |
-| TempleteList1 | nvarchar | Data field |
-| TempleteList2 | nvarchar | Data field |
-| SeriesList1 | nvarchar | Data field |
-| SeriesList2 | nvarchar | Data field |
-| OrganisationKey | nvarchar | Data field |
+| TenantCode | nvarchar(50) | Data field |
+| Timezone | nvarchar(200) | Data field |
+| LogoBase64 | nvarchar(MAX) | Data field |
+| TenantName | nvarchar(100) | Data field |
+| TenantURL | nvarchar(100) | Data field |
+| PrimaryColour | nvarchar(50) | Data field |
+| SecondaryColour | nvarchar(50) | Data field |
+| AssignmentPointList1 | nvarchar(4000) | Data field |
+| AssignmentPointList2 | nvarchar(4000) | Data field |
+| TempleteList1 | nvarchar(4000) | Data field |
+| TempleteList2 | nvarchar(4000) | Data field |
+| SeriesList1 | nvarchar(4000) | Data field |
+| SeriesList2 | nvarchar(4000) | Data field |
+| OrganisationKey | nvarchar(300) | Data field |
 
 ---
 
