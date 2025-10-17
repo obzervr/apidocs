@@ -34,8 +34,8 @@ Data developers and integration developers can use this specification to underst
 
 The Obzervr Data Pipeline provides read-only access to operational data through a set of stored procedures in the `pipeline` schema. All procedures follow consistent patterns for:
 
-- **Pagination**: Using `PagingId` (rowversion) or `Id` columns for efficient data retrieval
-- **Incremental Loading**: Optional Date-based filtering via `LastUpdatedStart` and `LastUpdatedEnd`
+- **Pagination**: Using `PagingId` (rowversion) for efficient incremental CDC data retrieval
+- **Incremental Loading**: Optional Date-based filtering via `LastUpdatedStart` and `LastUpdatedEnd` forincremental refresh systems that require date ranges (E.g. Power BI)
 - **Multi-tenancy**: Tenant filtering via `TenantIdList`
 - **Rate Limiting**: Monitored work rates to prevent system overload
 
@@ -53,6 +53,8 @@ The Obzervr Data Pipeline provides read-only access to operational data through 
 ## Authentication & Rate Limiting
 
 ### Work rate Management
+[!IMPORTANT]
+Although rate limits are described here and the pipeline honours rate limits, we have not enforced rate limits in the current version of the Pipeline. These limits will be enforced in the future and will include full communication of how these are limited and what is expected.
 
 **All stored procedures enforce rate limiting** through resource usage and duration monitoring.
 
@@ -83,7 +85,6 @@ All stored procedures in the pipeline schema share a consistent parameter struct
 | `@LastUpdatedStart` | `datetime` | `NULL` | No | Filter for records modified after this timestamp (exclusive). |
 | `@LastUpdatedEnd` | `datetime` | `NULL` | No | Filter for records modified before this timestamp (inclusive). |
 | `@LastPagingId` | `rowversion` | `NULL` | No | Resume pagination from this PagingId. Use for incremental loads. |
-| `@LastId` | `uniqueidentifier` | `NULL` | No | Alternative paging column for some entities using GUID IDs. |
 
 ### Parameter Notes
 
@@ -117,6 +118,8 @@ EXEC pipeline.sp_GetTenants
 ---
 
 ## Data Extraction Patterns
+[!IMPORTANT]
+See the daa catalog for sample CREATE TABLE scripts for each of the tables to help create staging or end state data.
 
 ### Pattern 1: Full Historical Load
 
@@ -238,6 +241,9 @@ EXEC pipeline.sp_GetAssignments
 ## Entity Catalog
 
 The following tables are available through the data pipeline, organized by size classification.
+
+[!IMPORTANT]
+See the data catalog for details of each entity and their properties.
 
 ### Extra Large Entities
 
