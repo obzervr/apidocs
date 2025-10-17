@@ -119,7 +119,7 @@ EXEC pipeline.sp_GetTenants
 
 ## Data Extraction Patterns
 [!IMPORTANT]
-See the [data catalog](data-pipeline/Data-Reference-Catalog.md) for sample CREATE TABLE scripts for each of the tables to help create staging or end state data.
+See the [data catalog](Data-Reference-Catalog.md) for sample CREATE TABLE scripts for each of the tables to help create staging or end state data.
 
 ### Pattern 1: Full Historical Load
 
@@ -243,7 +243,7 @@ EXEC pipeline.sp_GetAssignments
 The following tables are available through the data pipeline, organized by size classification.
 
 [!IMPORTANT]
-See the [data catalog](data-pipeline/Data-Reference-Catalog.md) for details of each entity and their properties.
+See the [data catalog](Data-Reference-Catalog.md) for details of each entity and their properties.
 
 ### Extra Large Entities
 
